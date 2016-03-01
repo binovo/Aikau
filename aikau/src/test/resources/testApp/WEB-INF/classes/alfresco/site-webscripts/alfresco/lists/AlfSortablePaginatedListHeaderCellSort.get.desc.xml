@@ -1,0 +1,6 @@
+<webscript>
+  <shortname>AlfSortablePaginatedListHeaderCellSort</shortname>
+  <description>Shows an AlfSortablePaginatedList which is a list that supports sorting by clicking on a HeadeCell.</description>
+  <family>aikau-unit-tests</family>
+  <url>/AlfSortablePaginatedListHeaderCellSort</url>
+</webscript>
