@@ -22,17 +22,43 @@
  * @author Dave Draper
  */
 define(["intern!object",
-      "intern/chai!assert",
-      "require",
-      "alfresco/TestCommon",
-      "intern/dojo/node!leadfoot/keys"
-   ],
-   function(registerSuite, assert, require, TestCommon, keys) {
+        "intern/chai!assert",
+        "alfresco/TestCommon",
+        "intern/dojo/node!leadfoot/keys"],
+   function(registerSuite, assert, TestCommon, keys) {
 
-registerSuite(function(){
-   var browser;
+   var formSelectors = TestCommon.getTestSelectors("alfresco/forms/Form");
+   var formControlSelectors = TestCommon.getTestSelectors("alfresco/forms/controls/BaseFormControl");
+   var checkBoxSelectors = TestCommon.getTestSelectors("alfresco/forms/controls/CheckBox");
+   var buttonSelectors = TestCommon.getTestSelectors("alfresco/buttons/AlfButton");
 
-   return {
+   var selectors = {
+      checkBoxes: {
+         default: {
+            checkBox: TestCommon.getTestSelector(checkBoxSelectors, "checkbox", ["DEFAULT_CHECKBOX"]),
+            label: TestCommon.getTestSelector(formControlSelectors, "label", ["DEFAULT_CHECKBOX"])
+         },
+         o1: {
+            checkBox: TestCommon.getTestSelector(checkBoxSelectors, "checkbox", ["O1_CHECKBOX"]),
+            label: TestCommon.getTestSelector(formControlSelectors, "label", ["O1_CHECKBOX"])
+         },
+         offon: {
+            checkBox: TestCommon.getTestSelector(checkBoxSelectors, "checkbox", ["OFFON_CHECKBOX"]),
+            label: TestCommon.getTestSelector(formControlSelectors, "label", ["OFFON_CHECKBOX"])
+         }
+      },
+      buttons: {
+         updateCheckboxes: TestCommon.getTestSelector(buttonSelectors, "button.label", ["UPDATE_CHECKBOXES"])
+      },
+      form: {
+         confirmationButton: TestCommon.getTestSelector(formSelectors, "confirmation.button", ["CHECKBOX_FORM"])
+      }
+   };
+
+   registerSuite(function(){
+      var browser;
+
+      return {
          name: "CheckBox Tests",
 
          setup: function() {
@@ -44,32 +70,62 @@ registerSuite(function(){
             browser.end();
          },
 
-         "Initial value is set correctly": function() {
-            return browser.findByCssSelector("#CAN_BUILD .dijitCheckBox input")
+         "Initial values are set correctly": function() {
+            return browser.findByCssSelector(selectors.checkBoxes.default.checkBox)
                .isSelected()
                .then(function(isSelected) {
-                  assert.isTrue(isSelected, "Checkbox not selected at startup");
+                  assert.isTrue(isSelected, "Default checkbox not selected at startup");
+               })
+            .end()
+
+            .findByCssSelector(selectors.checkBoxes.o1.checkBox)
+               .isSelected()
+               .then(function(isSelected) {
+                  assert.isFalse(isSelected, "0/1 checkbox selected at startup");
+               })
+            .end()
+
+            .findByCssSelector(selectors.checkBoxes.offon.checkBox)
+               .isSelected()
+               .then(function(isSelected) {
+                  assert.isTrue(isSelected, "on/off checkbox not selected at startup");
                });
          },
 
-         "Value can be updated by publish": function() {
-            return browser.findById("UNCHECK_CHECKBOX")
+         "Values are correctly updated by publish": function() {
+            return browser.findByCssSelector(selectors.buttons.updateCheckboxes)
                .click()
-               .end()
+            .end()
 
-            .findByCssSelector("#CAN_BUILD .dijitCheckBox input")
+            .findByCssSelector(selectors.checkBoxes.default.checkBox)
                .isSelected()
                .then(function(isSelected) {
-                  assert.isFalse(isSelected, "Checkbox not deselected by publish");
+                  assert.isFalse(isSelected, "Default checkbox not deselected by publish");
+               })
+            .end()
+
+            .findByCssSelector(selectors.checkBoxes.o1.checkBox)
+               .isSelected()
+               .then(function(isSelected) {
+                  assert.isTrue(isSelected, "0/1 checkbox not selected by publish");
+               })
+            .end()
+
+            .findByCssSelector(selectors.checkBoxes.offon.checkBox)
+               .isSelected()
+               .then(function(isSelected) {
+                  assert.isTrue(isSelected, "on/off checkbox incorrectly modified by publish");
                });
          },
 
          "Keyboard navigation and selection is supported": function() {
-            return browser.pressKeys(keys.TAB)
+            return browser.findByCssSelector(selectors.buttons.updateCheckboxes)
+               .click()
+               .tabToElement(selectors.checkBoxes.default.checkBox)
                .pressKeys(keys.SPACE)
-               .end()
+            .end()
 
-            .findByCssSelector("#CAN_BUILD .dijitCheckBox input")
+            .findByCssSelector(selectors.checkBoxes.default.checkBox)
                .isSelected()
                .then(function(isSelected) {
                   assert.isTrue(isSelected, "Checkbox value not changed by keyboard");
@@ -77,11 +133,11 @@ registerSuite(function(){
          },
 
          "Can modify checkbox value with mouse": function() {
-            return browser.findByCssSelector("#CAN_BUILD label")
+            return browser.findByCssSelector(selectors.checkBoxes.default.label)
                .click()
-               .end()
+            .end()
 
-            .findByCssSelector("#CAN_BUILD .dijitCheckBox input")
+            .findByCssSelector(selectors.checkBoxes.default.checkBox)
                .isSelected()
                .then(function(isSelected) {
                   assert.isFalse(isSelected, "Checkbox value not changed by mouse");
@@ -89,13 +145,15 @@ registerSuite(function(){
          },
 
          "Form correctly posts value": function() {
-            return browser.findByCssSelector("#CHECKBOX_FORM > .buttons > .confirmationButton .dijitButtonNode")
+            return browser.findByCssSelector(selectors.form.confirmationButton)
                .click()
-               .end()
+            .end()
 
             .getLastPublish("POST_FORM")
                .then(function(payload) {
-                  assert.deepPropertyVal(payload, "canbuild", false, "Failed to submit checkbox value correctly");
+                  assert.propertyVal(payload, "defaultCheckbox", false);
+                  assert.propertyVal(payload, "o1", 1);
+                  assert.propertyVal(payload, "offon", "on");
                });
          },
 
@@ -103,5 +161,5 @@ registerSuite(function(){
             TestCommon.alfPostCoverageResults(this, browser);
          }
       };
-      });
    });
+});

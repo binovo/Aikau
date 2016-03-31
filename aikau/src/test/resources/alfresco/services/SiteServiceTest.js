@@ -27,6 +27,29 @@ define(["alfresco/TestCommon",
         "intern/chai!assert"], 
         function(TestCommon, registerSuite, assert) {
 
+   var textBoxSelectors = TestCommon.getTestSelectors("alfresco/forms/controls/TextBox");
+   var buttonSelectors = TestCommon.getTestSelectors("alfresco/buttons/AlfButton");
+   var dialogSelectors = TestCommon.getTestSelectors("alfresco/dialogs/AlfDialog");
+
+   var selectors = {
+      buttons: {
+         createSite: TestCommon.getTestSelector(buttonSelectors, "button.label", ["CREATE_SITE"])
+      },
+      dialogs: {
+         createSite: {
+            visible: TestCommon.getTestSelector(dialogSelectors, "visible.dialog", ["CREATE_SITE_DIALOG"])
+         }
+      },
+      textBoxes: {
+         createSiteTitle: {
+            input: TestCommon.getTestSelector(textBoxSelectors, "input", ["CREATE_SITE_FIELD_TITLE"])
+         },
+         createSiteShortName: {
+            input: TestCommon.getTestSelector(textBoxSelectors, "input", ["CREATE_SITE_FIELD_SHORTNAME"])
+         }
+      }
+   };
+
    registerSuite(function() {
       var browser;
 
@@ -42,21 +65,47 @@ define(["alfresco/TestCommon",
             browser.end();
          },
 
-         "Create site (duplicate shortName)": function() {
+         "Create site (shortName set from title)": function() {
             return browser.setFindTimeout(5000)
 
-            .findById("CREATE_SITE_label")
+            .findByCssSelector(selectors.buttons.createSite)
                .click()
             .end()
 
-            .findDisplayedById("CREATE_SITE_DIALOG")
+            .findByCssSelector(selectors.dialogs.createSite.visible)
             .end()
 
-            .findByCssSelector("#CREATE_SITE_DIALOG #CREATE_SITE_FIELD_TITLE .dijitInputContainer input")
+            .findByCssSelector(selectors.textBoxes.createSiteTitle.input)
+               .type(" has*odd & chars")
+            .end()
+
+            .findByCssSelector(selectors.textBoxes.createSiteShortName.input)
+               .getProperty("value")
+               .then(function(value) {
+                  assert.equal(value,"hasodd-chars");
+               });
+         },
+
+         "Create Site (edit shortName stops auto updating)": function() {
+            return browser.findByCssSelector(selectors.textBoxes.createSiteShortName.input)
+               .clearValue()
                .type("fail")
             .end()
 
-            .findByCssSelector("#CREATE_SITE_DIALOG #CREATE_SITE_FIELD_SHORTNAME .dijitInputContainer input")
+            .findByCssSelector(selectors.textBoxes.createSiteTitle.input)
+               .type("no copying now")
+            .end()
+
+            .findByCssSelector(selectors.textBoxes.createSiteShortName.input)
+               .getProperty("value")
+               .then(function(value) {
+                  assert.equal(value,"fail");
+               });
+         },
+
+         "Create site (duplicate shortName)": function() {
+            return browser.findByCssSelector(selectors.textBoxes.createSiteTitle.input)
+               .clearValue()
                .type("fail")
             .end()
 
@@ -157,6 +206,56 @@ define(["alfresco/TestCommon",
                })
 
             .waitForDeletedByCssSelector(".alfresco-notifications-AlfNotification--visible");
+         },
+
+         "Requesting to join site with request already pending displays suitable error message": function() {
+            return browser.findById("REQUEST_SITE_MEMBERSHIP_ALREADY_PENDING_label")
+               .click()
+            .end()
+
+            .findDisplayedByCssSelector(".alfresco-notifications-AlfNotification__message")
+               .getVisibleText()
+               .then(function(visibleText) {
+                  assert.equal(visibleText, "A request to join this site is already pending");
+               })
+            .end()
+
+            .waitForDeletedByCssSelector(".alfresco-notifications-AlfNotification");
+         },
+
+         "Error occurring when requesting to join site displays error message": function() {
+            return browser.findById("REQUEST_SITE_MEMBERSHIP_ERROR_label")
+               .click()
+            .end()
+
+            .findDisplayedByCssSelector(".alfresco-notifications-AlfNotification__message")
+               .getVisibleText()
+               .then(function(visibleText) {
+                  assert.equal(visibleText, "The request to join the site failed");
+               })
+            .end()
+
+            .waitForDeletedByCssSelector(".alfresco-notifications-AlfNotification");
+         },
+
+         "Can cancel request to join site": function() {
+            return browser.findById("CANCEL_PENDING_REQUEST_label")
+               .clearLog()
+               .click()
+            .end()
+
+            .getLastXhr("api/sites/my-site/invitations/foo")
+
+            .findDisplayedByCssSelector(".alfresco-notifications-AlfNotification__message")
+               .getVisibleText()
+               .then(function(visibleText) {
+                  assert.equal(visibleText, "Successfully cancelled request to join site My Site");
+               })
+            .end()
+
+            .waitForDeletedByCssSelector(".alfresco-notifications-AlfNotification")
+
+            .getLastPublish("ALF_RELOAD_PAGE");
          },
 
          "Leave site and confirm user home page override works": function(){

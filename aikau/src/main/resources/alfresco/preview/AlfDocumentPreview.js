@@ -82,7 +82,7 @@ define(["dojo/_base/declare",
       /**
        * <p>This function attempts to set an appropriate height for the previewer. There are 3 different modes
        * of controlling the height:
-       * <ul><li>"AUTO" will attempt to ensure that the the previewer takes up the complete vertical space in the 
+       * <ul><li>"AUTO" will attempt to ensure that the previewer takes up the complete vertical space in the 
        * client from where it starts. This makes sense to use if you have a single previewer on a page.</li>
        * <li>Any positive number (note: not as a string) will set an explicit height that won't change as the 
        * browser resizes</li>
@@ -169,7 +169,8 @@ define(["dojo/_base/declare",
 
       /**
        * The proxy to use for the rest api call for the node's content or thumbnails.
-       * I.e. "alfresco" (or "alfresco-noauth" for public content & pages)
+       * I.e. "alfresco" (or "alfresco-noauth" for public content & pages). Can be set as null or empty
+       * value for URLs that do not require a specific proxy id endpoint.
        *
        * @instance
        * @type {string}
@@ -324,9 +325,9 @@ define(["dojo/_base/declare",
       /**
        * This function is used to update the [pluginConditions]{@link module:alfresco/preview/AlfDocumentPreview#pluginConditions}
        * with additional condition data from an entry defined in 
-       * [pluginConditionsOverides]{@link module:alfresco/preview/AlfDocumentPreview#pluginConditionsOverides}. This function 
+       * [pluginConditionsOverrides]{@link module:alfresco/preview/AlfDocumentPreview#pluginConditionsOverrides}. This function 
        * is called from [setupPlugins]{@link module:alfresco/preview/AlfDocumentPreview#setupPlugins} for each entry
-       * in the [pluginConditionsOverides]{@link module:alfresco/preview/AlfDocumentPreview#pluginConditionsOverides} array.
+       * in the [pluginConditionsOverrides]{@link module:alfresco/preview/AlfDocumentPreview#pluginConditionsOverrides} array.
        * 
        * @instance
        * @param {object} condition The plugin condition to update
@@ -378,7 +379,7 @@ define(["dojo/_base/declare",
          else
          {
             // The condition provided does not already exist so add it now...
-            this.pluginConditions.push(condition);
+            this.pluginConditions.unshift(condition);
          }
       },
 
@@ -394,9 +395,9 @@ define(["dojo/_base/declare",
             array.forEach(this.widgetsForPluginsOverrides, lang.hitch(this, this.updatePluginConfiguration));
          }
 
-         if (this.pluginConditionsOverides)
+         if (this.pluginConditionsOverrides)
          {
-            array.forEach(this.pluginConditionsOverides, lang.hitch(this, this.updatePluginConditions));
+            array.forEach(this.pluginConditionsOverrides, lang.hitch(this, this.updatePluginConditions));
          }
 
          array.forEach(this.widgetsForPlugins, function(plugin) {
@@ -618,6 +619,11 @@ define(["dojo/_base/declare",
        * @return {boolean} true if conditions are fulfilled for plugins to be used.
        */
       conditionsMatch: function alfresco_preview_AlfDocumentPreview__conditionsMatch(condition) {
+         if (!condition.attributes.mimeType && !condition.attributes.thumbnail)
+         {
+            // Only continue with the test if either a thumbnail or mimeType condition has been provided.
+            return false;
+         }
          if (condition.attributes.mimeType && condition.attributes.mimeType !== this.mimeType)
          {
             return false;
@@ -638,7 +644,7 @@ define(["dojo/_base/declare",
        * @return {string} The "main" element holding the actual previewer.
        */
       getContentUrl: function alfresco_preview_AlfDocumentPreview__getContentUrl(download) {
-         var proxy = window.location.protocol + "//" + window.location.host + AlfConstants.URL_CONTEXT + "proxy/" + this.proxy + "/",
+         var proxy = window.location.protocol + "//" + window.location.host + AlfConstants.URL_CONTEXT + "proxy/" + (this.proxy ? this.proxy + "/" : ""),
             nodeRefAsLink = this.nodeRef.replace(":/", ""),
             noCache = "noCache=" + new Date().getTime();
          download = download ? "a=true" : "a=false";
@@ -655,7 +661,7 @@ define(["dojo/_base/declare",
        * @return {String} The url to the thumbnail content.
        */
       getThumbnailUrl: function alfresco_preview_AlfDocumentPreview__getThumbnailUrl(thumbnail, fileSuffix) {
-         var proxy = window.location.protocol + "//" + window.location.host + AlfConstants.URL_CONTEXT + "proxy/" + this.proxy + "/",
+         var proxy = window.location.protocol + "//" + window.location.host + AlfConstants.URL_CONTEXT + "proxy/" + (this.proxy ? this.proxy + "/" : ""),
             nodeRefAsLink = this.nodeRef.replace(":/", ""),
             noCache = "noCache=" + new Date().getTime(),
             force = "c=force";
@@ -717,7 +723,7 @@ define(["dojo/_base/declare",
        * @default
        * @since 1.0.56
        */
-      pluginConditionsOverides: null,
+      pluginConditionsOverrides: null,
 
       /**
        * A json representation of the .get.config.xml file.
@@ -735,7 +741,9 @@ define(["dojo/_base/declare",
             plugins: [
                {
                   name: "PdfJs",
-                  attributes: {}
+                  attributes: {
+                     src: ""
+                  }
                }
             ]
          },

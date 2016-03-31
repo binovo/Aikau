@@ -121,6 +121,7 @@ define(["dojo/_base/declare",
        * @since 1.0.48
        */
       onDisplayStickyPanel: function alfresco_services_NotificationService__onDisplayStickyPanel(payload) {
+         /*jshint maxcomplexity:false*/
 
          // Setup variables
          var panelConfig = {},
@@ -147,6 +148,15 @@ define(["dojo/_base/declare",
             }
             if (payload.padding || payload.padding === 0) {
                panelConfig.widgetsPadding = payload.padding;
+            }
+            if (payload.closeButtonLabel) {
+               panelConfig.closeButtonLabel = payload.closeButtonLabel;
+            }
+            if (payload.minimiseButtonLabel) {
+               panelConfig.minimiseButtonLabel = payload.minimiseButtonLabel;
+            }
+            if (payload.restoreButtonLabel) {
+               panelConfig.restoreButtonLabel = payload.restoreButtonLabel;
             }
 
             // Create the panel

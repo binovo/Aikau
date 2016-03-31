@@ -115,6 +115,37 @@ define([],function() {
       CANCEL_INPROGRESS_UPLOAD: "CANCEL_INPROGRESS_UPLOAD",
 
       /**
+       * Cancel a request to join a site.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.58
+       *
+       * @event
+       * @property {string} siteId The ID of the site
+       * @property {string} siteTitle The "friendly" name of the site
+       * @property {object} pendingInvite The object describing the pending invite
+       * @property {string} pendingInvite.id The ID of the pending site-join request
+       */
+      CANCEL_JOIN_SITE_REQUEST: "ALF_CANCEL_JOIN_SITE_REQUEST",
+
+      /**
+       * This topic is published to request the options to change the type of a node. It doesn't perform the
+       * actual change, but simply provides the type change options in a dialog.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.58
+       * 
+       * @event
+       * @property {object} [node] An object representing the full metadata of the Node to change the type of
+       * @property {string} [nodeRef] The NodeRef of the Node to retrieve the full metadata of in order to change its type
+       */
+      CHANGE_TYPE_REQUEST: "ALF_CHANGE_TYPE_REQUEST",
+
+      /**
        * This can be published to clear any selected items that are logged by widgets
        * such as the [AlfSelectedItemsMenuBarPopup]{@link module:alfresco/documentlibrary/AlfSelectedItemsMenuBarPopup}.
        *
@@ -344,6 +375,9 @@ define([],function() {
        * @event
        * @property {object[]} widgets The widgets to appear in the panel
        * @property {string} [title=default.title] The title to display (uses i18n)
+       * @property {string} [closeButtonLabel=Close this panel] The text-label that decorates the close button for accessibility reasons
+       * @property {string} [minimiseButtonLabel=Minimize this panel] The text-label that decorates the minimise button for accessibility reasons
+       * @property {string} [restoreButtonLabel=Restore this panel] The text-label that decorates the restore button for accessibility reasons
        * @property {number} [padding=10] The padding to be applied to the widgets area
        * @property {string|number} [width=50%] The width of the panel (CSS dimension or number of pixels)
        * @property {boolean} [warnIfOpen=true] Whether to put a warning in the console if the panel is
@@ -618,6 +652,22 @@ define([],function() {
       GET_PREFERENCE: "ALF_PREFERENCE_GET",
 
       /**
+       * This topic can be published to request a list of all available users in the Alfresco Repository.
+       * This request is expected to be handled by the [UserService]{@link module:alfresco/services/UserService}.
+       * The results are published on 'alfResponseTopic' provided, and are defined as an array as attribute "items"
+       * in the published payload.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.60
+       *
+       * @event
+       * @property {string} alfResponseTopic The topic on which to publish the users data
+       */
+      GET_USERS: "ALF_GET_USERS",
+
+      /**
        * Can be published to initialise the creation of a synchronization between an on-premise node and
        * a location on the Alfresco Cloud.
        * 
@@ -706,7 +756,7 @@ define([],function() {
        * @default
        * @since 1.0.35
        *
-       * @event module:alfresco/core/topics~NAVIGATE_TO_PAGE
+       * @event
        * @property {string} url The URL to navigate to
        * @property {string} [type=PAGE_RELATIVE] The [type of navigation]{@link module:alfresco/enums/urlTypes}
        * @property {string} [target=CURRENT] Whether to use the "CURRENT" tab, open in a "NEW" tab, or use a "NAMED" tab
@@ -1033,6 +1083,36 @@ define([],function() {
       SET_THUMBNAIL_SIZE: "ALF_SET_THUMBNAIL_SIZE",
 
       /**
+       * This topic is subscribed to by the [LightboxService]{@link module:alfresco/services/LightboxService}
+       * in order to handle requests to display lightboxes that show an image preview of a Node.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.59
+       *
+       * @event
+       * @property {string} title The title for the lightbox
+       * @property {string} src The location of the image file to show in the lightbox
+       */
+      SHOW_LIGHTBOX: "ALF_DISPLAY_LIGHTBOX",
+
+      /**
+       * This topic is subscribed to by the [FilePreviewService]{@link module:alfresco/services/NodePreviewService}
+       * in order to handle requests to display previews of nodes.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.59
+       *
+       * @event
+       * @property {object} [node] The Node to show the preview for
+       * @property {string} [nodeRef] The NodeRef of the Node to show the preview for
+       */
+      SHOW_NODE_PREVIEW: "ALF_SHOW_NODE_PREVIEW",
+
+      /**
        * This topic can be published to perform the actual creation of a site. Unlike 
        * [CREATE_SITE]{@link module:alfresco/core/topics#CREATE_SITE} this requires a payload that includes the
        * details for the new site (as it performs the actual creation on the Alfresco Repository rather than
@@ -1112,6 +1192,22 @@ define([],function() {
        * @property {object[]} nodes The node or nodes to download.
        */
       SMART_DOWNLOAD: "ALF_SMART_DOWNLOAD",
+
+      /**
+       * This can be published to request that a [list]{@link module:alfresco/lists/AlfSortablePaginatedList}
+       * changes the way that its data is sorted.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.59
+       *
+       * @event
+       * @property {string} direction Either "ascending" or "descending"
+       * @property {string} value The field to sort on
+       * @property {object} [requester] The widget making the request (include to avoid cycling publications).
+       */
+      SORT_LIST: "ALF_DOCLIST_SORT",
 
       /**
        * This can be called to close the StickyPanel.
@@ -1249,6 +1345,22 @@ define([],function() {
        * @event
        */
       TINYMCE_EDITOR_FOCUSED: "ALF_TINYMCE_EDITOR_FOCUSED",
+
+      /**
+       * This can be published to change the current field being used to sort lists.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.59
+       *
+       * @event
+       * @property {string}  direction Either "ascending" or "descending"
+       * @property {string}  [label] A label that represents the field to be sorted on
+       * @property {boolean} [sortable] Whether or not this field can be have the sort direction changed on it
+       * @property {object}  [requester] The widget making the request (include to avoid cycling publications).
+       */
+      UPDATE_LIST_SORT_FIELD: "ALF_DOCLIST_SORT_FIELD_SELECTION",
 
       /**
        * This topic can be used to publish a request to change the title of a page. It is subscribed to by the

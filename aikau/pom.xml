@@ -3,7 +3,7 @@
    <parent>
       <groupId>org.alfresco</groupId>
       <artifactId>aikau-parent</artifactId>
-   <version>1.0.57-SNAPSHOT</version>
+   <version>1.0.62-SNAPSHOT</version>
       <relativePath>../pom.xml</relativePath>
    </parent>
 
@@ -177,8 +177,8 @@
 
          <resource>
             <!-- WebScripts go into their own package -->
-            <targetPath>./alfresco/site-webscripts/org/alfresco/aikau</targetPath>
-            <filtering>false</filtering>
+            <targetPath>./alfresco/site-webscripts/org/alfresco/aikau/${project.version}/webscripts</targetPath>
+            <filtering>true</filtering>
             <directory>${basedir}/src/main/resources/webscripts</directory>
          </resource>
 
@@ -204,6 +204,7 @@
             <filtering>true</filtering>
             <includes>
                <include>testApp/WEB-INF/surf.xml</include>
+               <include>testApp/WEB-INF/config/web-application-config.xml</include>
             </includes>
          </testResource>
          <testResource>
@@ -211,11 +212,38 @@
             <filtering>false</filtering>
             <excludes>
                <exclude>testApp/WEB-INF/surf.xml</exclude>
+               <exclude>testApp/WEB-INF/config/web-application-config.xml</exclude>
             </excludes>
          </testResource>
       </testResources>
 
       <plugins>
+
+         <!-- See AKU-845 - This plugin has been brought in to create a property that is the project
+              version with all "." characters replaced with "-" characters. The reason that this is 
+              required is that we want to defined version specific WebScript URLs, but for some reason
+              (most likely in Surf) the RequestDispatcher fails to map URLs containing more than
+              one "." character - this means that the Aikau version cannot be used without modification -->
+         <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <version>1.10</version>
+            <executions>
+               <execution>
+                  <id>regex-property</id>
+                  <goals>
+                     <goal>regex-property</goal>
+                  </goals>
+                  <configuration>
+                     <name>webscript.version</name>
+                     <value>${project.version}</value>
+                     <regex>\.</regex>
+                     <replacement>-</replacement>
+                     <failIfNoMatch>false</failIfNoMatch>
+                  </configuration>
+             </execution>
+           </executions>
+         </plugin>
 
          <plugin>
             <artifactId>maven-antrun-plugin</artifactId>
@@ -278,6 +306,40 @@
                      </artifactItems>
                   </configuration>
                 </execution>
+            </executions>
+         </plugin>
+
+         <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>2.6</version>
+            <executions>
+               <execution>
+                  <id>build-jar</id>
+                  <goals>
+                     <goal>jar</goal>
+                  </goals>
+               </execution>
+            </executions>
+         </plugin>
+
+         <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>2.6</version>
+            <executions>
+               <execution>
+                  <id>build-tests</id>
+                  <goals>
+                     <goal>test-jar</goal>
+                  </goals>
+                  <configuration>
+                     <testClassesDirectory>${project.build.testOutputDirectory}/test-selectors</testClassesDirectory>
+                     <includes>
+                        <include>**/*.properties</include>
+                     </includes>
+                  </configuration>
+               </execution>
             </executions>
          </plugin>
 

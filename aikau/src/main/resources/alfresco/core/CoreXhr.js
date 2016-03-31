@@ -27,6 +27,7 @@
  */
 define(["dojo/_base/declare",
         "service/constants/Default",
+        "webscripts/defaults",
         "dijit/registry",
         "dojo/topic",
         "dojo/_base/array",
@@ -37,7 +38,7 @@ define(["dojo/_base/declare",
         "dojo/json",
         "dojo/date/stamp",
         "dojo/cookie"],
-        function(declare, AlfConstants, registry, pubSub, array, lang, domConstruct, uuid, xhr, JSON, stamp, dojoCookie) {
+        function(declare, AlfConstants, webScriptDefaults, registry, pubSub, array, lang, domConstruct, uuid, xhr, JSON, stamp, dojoCookie) {
 
    return declare(null, {
 
@@ -212,11 +213,12 @@ define(["dojo/_base/declare",
                }, function(response) {
 
                   // Handle authentication failure (401) or Session timeout
+                  var callbackScope;
                   if (response.response && response.response.status === 401)
                   {
                      if (typeof config.authenticationFailureCallback === "function")
                      {
-                        var callbackScope = config.failureCallbackScope || config.callbackScope || _this;
+                        callbackScope = config.failureCallbackScope || config.callbackScope || _this;
                         config.authenticationFailureCallback.call(callbackScope, response, config);
                      }
                      else
@@ -261,7 +263,7 @@ define(["dojo/_base/declare",
                   }
                   if (typeof config.failureCallback === "function")
                   {
-                     var callbackScope = config.failureCallbackScope || config.callbackScope || _this;
+                     callbackScope = config.failureCallbackScope || config.callbackScope || _this;
                      config.failureCallback.call(callbackScope, response, config);
                   }
                   else
@@ -426,12 +428,21 @@ define(["dojo/_base/declare",
 
          // Build up the Accept-Language header value
          var languages = navigator.languages;
-         if (languages) {
-            languages = array.map(languages, function(lang) {
-               return lang.toLowerCase();
+         if (languages) 
+         {
+            languages = array.map(languages, function(nextLang) {
+               return nextLang;
             }).join(", ");
-         } else {
-            languages = (navigator.language || navigator.userLanguage).toLowerCase();
+         } 
+         else 
+         {
+            languages = webScriptDefaults.ACCEPT_LANGUAGE;
+         }
+
+         // Last resort... if for any reason the webscriptDefaults hasn't worked.
+         if (!languages)
+         {
+            languages = (navigator.language || navigator.userLanguage);
          }
 
          // Construct and return the headers

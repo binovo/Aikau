@@ -18,7 +18,7 @@
  */
 
 /**
- * This widget allows Aikau models to be be displayed. It passes the model to Surf to obtain a list of the JavaScript and CSS
+ * This widget allows Aikau models to be displayed. It passes the model to Surf to obtain a list of the JavaScript and CSS
  * dependencies required to render the model and these are then dynamically added to the DOM.
  *
  * @example <caption>This is an example configuration:</caption>
@@ -243,12 +243,12 @@ define(["dojo/_base/declare",
          if (typeof parameters.object === "string" &&
              parameters.ancestors)
          {
-            // Find the the template...
+            // Find the template...
             var loadedTemplate;
-            array.forEach(parameters.config.templates, function(template) {
-               if (template.name === parameters.object)
+            array.forEach(parameters.config.templates, function(nextTemplate) {
+               if (nextTemplate.name === parameters.object)
                {
-                  var parsedContent = JSON.parse(template.content);
+                  var parsedContent = JSON.parse(nextTemplate.content);
                   loadedTemplate = parsedContent.widgets[0];
                }
             });

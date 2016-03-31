@@ -258,16 +258,6 @@ define(["alfresco/core/CoreXhr",
        */
       initService: function alfresco_services__BaseUploadService__initService() {
          this.inherited(arguments);
-         this.widgetsForUploadDisplay = lang.clone(this.widgetsForUploadDisplay);
-         var widgets = this.widgetsForUploadDisplay;
-         if (widgets && widgets.constructor === Array && widgets.length === 1) {
-            lang.mixin(widgets[0], {
-               assignTo: "uploadDisplayWidget",
-               assignToScope: this
-            });
-         } else {
-            this.alfLog("error", "Must define a widget for displaying upload progress in property 'widgetsForUploadDisplay'");
-         }
          this.reset();
       },
 
@@ -322,7 +312,7 @@ define(["alfresco/core/CoreXhr",
             destination: destination,
             siteId: targetData.siteId,
             containerId: targetData.containerId,
-            uploaddirectory: targetData.uploadDirectory,
+            uploaddirectory: targetData.uploadDirectory || file.relativePath,
             majorVersion: targetData.majorVersion ? targetData.majorVersion : "true",
             updateNodeRef: targetData.updateNodeRef,
             description: targetData.description,
@@ -359,10 +349,19 @@ define(["alfresco/core/CoreXhr",
       onUploadCancelRequest: function alfresco_services__BaseUploadService__onUploadCancelRequest(payload) {
          var fileId = payload && payload.fileId,
             fileInfo = this.fileStore[fileId];
-         try {
-            fileInfo.request.abort();
-         } catch (e) {
-            this.alfLog("info", "Unable to cancel upload: ", fileInfo, e);
+         if (fileInfo) {
+            try {
+               if (fileInfo.progress === 0) {
+                  fileInfo.request = { // Manually force status of 0 to notify of cancellation
+                     status: 0
+                  };
+                  this.failureListener(fileId); // Manually call the failure listener for this file
+               } else {
+                  fileInfo.request.abort();
+               }
+            } catch (e) {
+               this.alfLog("info", "Unable to cancel upload: ", fileInfo, e);
+            }
          }
       },
 
@@ -526,6 +525,30 @@ define(["alfresco/core/CoreXhr",
       },
 
       /**
+       * This function can be called when creating the upload display. It ensures that the root widget is correctly
+       * configured to be assigned to the [widgetsForUploadDisplay]{@link module:alfresco/services/_BaseUploadService#widgetsForUploadDisplay}
+       * reference. Care should be taken When overriding the 
+       * [showUploadsWidget]{@link module:alfresco/services/_BaseUploadService#showUploadsWidget} to ensure that any model
+       * is correctly setup by calling this function.
+       * 
+       * @return {object[]} The object model for rendering the upload display
+       * @instance 1.0.57
+       */
+      processWidgetsForUploadDisplay: function alfresco_services__BaseUploadService__processWidgetsForUploadDisplay() {
+         var widgets = lang.clone(this.widgetsForUploadDisplay);
+         if (widgets && widgets.constructor === Array && widgets.length === 1) {
+            lang.mixin(widgets[0], {
+               assignTo: "uploadDisplayWidget",
+               assignToScope: this
+            });
+         } 
+         else {
+            this.alfLog("error", "Must define a widget for displaying upload progress in property 'widgetsForUploadDisplay'");
+         }
+         return widgets;
+      },
+
+      /**
        * Register this service's subscriptions.
        * 
        * @instance
@@ -594,7 +617,7 @@ define(["alfresco/core/CoreXhr",
        * @param {object} Contains info about the file and its request.
        */
       startFileUpload: function alfresco_services__BaseUploadService__startFileUpload(fileInfo) {
-         /*jshint maxstatements:false*/
+         /*jshint maxstatements:false,maxcomplexity:false*/
 
          // Ensure we only upload the maximum allowed at a time
          if (this._numUploadsInProgress === this.maxSimultaneousUploads) {
@@ -660,6 +683,9 @@ define(["alfresco/core/CoreXhr",
                formData.append("fileData", uploadData.filedata);
                formData.append("fileName", uploadData.filename);
                formData.append("autoRename", !uploadData.overwrite);
+               if (uploadData.uploaddirectory) {
+                  formData.append("relativePath", uploadData.uploaddirectory);
+               }
                
                break;
             }
@@ -744,6 +770,7 @@ define(["alfresco/core/CoreXhr",
             // successfully, if this occurs then we'll attach a function to the onreadystatechange extension
             // point and things to catch up before we check everything was ok.
             if (fileInfo.request.readyState !== 4) {
+               this.uploadDisplayWidget.updateUploadProgress(fileId, 100);
                fileInfo.request.onreadystatechange = lang.hitch(this, function() {
                   if (fileInfo.request.readyState === 4) {
                      this.processUploadCompletion(fileId, evt);
@@ -815,8 +842,8 @@ define(["alfresco/core/CoreXhr",
       uploadProgressListener: function alfresco_services__BaseUploadService__uploadProgressListener(fileId, evt) {
          var fileInfo = this.fileStore[fileId];
          if (fileInfo && evt.lengthComputable) {
-            var progress = Math.round(evt.loaded / evt.total * 100);
-            this.uploadDisplayWidget.updateUploadProgress(fileId, progress, evt);
+            var progress = Math.min(Math.round(evt.loaded / evt.total * 100), 100);
+            this.uploadDisplayWidget.updateUploadProgress(fileId, progress);
             fileInfo.progress = progress;
             this.updateAggregateProgress();
          } else {

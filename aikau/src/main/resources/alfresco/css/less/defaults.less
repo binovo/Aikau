@@ -160,6 +160,8 @@
 @standard-button-padding-horizontal: @standard-button-font-size;
 @standard-button-padding: @standard-button-padding-vertical @standard-button-padding-horizontal;
 @standard-button-margin: 0 @standard-column-width 0 0;
+@standard-button-text-padding: 0;
+@standard-button-text-margin: 0;
 
 // "Call-to-action" buttons capture the users attention
 @call-to-action-button-background: @button-color-default;
@@ -186,6 +188,8 @@
 @call-to-action-button-padding-horizontal: @standard-button-padding-horizontal;
 @call-to-action-button-padding: @call-to-action-button-padding-vertical @call-to-action-button-padding-horizontal;
 @call-to-action-button-margin: @standard-button-margin;
+@call-to-action-button-text-padding: @standard-button-text-padding;
+@call-to-action-button-text-margin: @standard-button-text-margin;
 
 // "Primary call-to-action" buttons are first among equals
 @primary-call-to-action-button-background: @primary-call-to-action-default;
@@ -332,8 +336,13 @@
 @upload-monitor-progress-column-width: 50px;
 @upload-monitor-status-column-width: 150px;
 @upload-monitor-status-color-inprogress: #ccc;
+@upload-monitor-status-color-finishing: #ccc;
 @upload-monitor-status-color-successful: #090;
 @upload-monitor-status-color-unsuccessful: #c00;
+@upload-monitor-progress-bar-height: 2px;
+@upload-monitor-progress-bar-background: #6bf;
+@upload-monitor-progress-bar-box-shadow: 0 0 2px 1px #dff;
+@upload-monitor-progress-bar-finishing-background: #0b0;
 
 // Filters
 @filter-hover-color: @list-hover-color;
@@ -361,6 +370,10 @@
 @dnd-palette-margin: 5px;
 @dnd-palette-padding: 5px;
 
+// UploadContainer backgrounds
+@upload-highlight-opacity: 0.2;
+@upload-highlight-overlay-opacity: 1;
+@upload-highlight-overlay-background: rgba(255, 255, 255, 0);
 
 // Generic colours for displaying collections of items
 @collectionColour1: #f1e695;

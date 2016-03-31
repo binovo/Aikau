@@ -1,8 +1,13 @@
-Aikau 1.0.56 Release Notes
+Aikau 1.0.61 Release Notes
 ===
 
-Current deprecations:
+Previous deprecations:
 ---
+* alfresco/renderers/Thumbnail.js
+  * onNodePromiseResolved                                        (configure usePreviewService to be true)
+  * onLoadNode                                                   (configure usePreviewService to be true)
+  * onNodeLoaded                                                 (configure usePreviewService to be true)
+  * onShowPreview                                                (configure usePreviewService to be true)
 * alfresco/buttons/AlfFormDialogButton.js                        (use alfresco/services/DialogService)
 * alfresco/core/Core "alfDeleteFrameworkAttributes"              (use alfresco/core/Core "alfCleanFrameworkAttributes")
 * alfresco/core/NotificationUtils.js                             (use alfresco/services/NotificationService)
@@ -42,6 +47,57 @@ Current deprecations:
 
 Resolved issues:
 ---
+1.0.61:
+* [AKU-757](https://issues.alfresco.com/jira/browse/AKU-757)       - Prevent browser popup blocker on download requests
+* [AKU-903](https://issues.alfresco.com/jira/browse/AKU-903)       - Prevent click bubbling on PublishAction
+* [AKU-910](https://issues.alfresco.com/jira/browse/AKU-910)       - Success actions on UploadMonitor
+
+1.0.60:
+* [AKU-879](https://issues.alfresco.com/jira/browse/AKU-879)       - Ensure drag and drop overlay fits to visible area
+* [AKU-884](https://issues.alfresco.com/jira/browse/AKU-884)       - OptionsService improvements
+* [AKU-885](https://issues.alfresco.com/jira/browse/AKU-885)       - Ensure correct Accept-Language header in IE
+* [AKU-887](https://issues.alfresco.com/jira/browse/AKU-887)       - Ensure upload works on Safari
+* [AKU-888](https://issues.alfresco.com/jira/browse/AKU-888)       - Improvements to create site dialog
+* [AKU-889](https://issues.alfresco.com/jira/browse/AKU-889)       - Upload display customization improvements
+* [AKU-891](https://issues.alfresco.com/jira/browse/AKU-891)       - Prevent browser rendering dropped files
+* [AKU-895](https://issues.alfresco.com/jira/browse/AKU-895)       - Ensure AlfBreadcrumbTrail reflects initial path
+* [AKU-897](https://issues.alfresco.com/jira/browse/AKU-897)       - Ensure it is possible to cancel unstarted upload
+
+1.0.59:
+* [AKU-869](https://issues.alfresco.com/jira/browse/AKU-866)       - Added alfresco/services/NodePreviewService
+* [AKU-870](https://issues.alfresco.com/jira/browse/AKU-870)       - Ensure HeaderCell sorting works with AlfFilteredList
+* [AKU-871](https://issues.alfresco.com/jira/browse/AKU-871)       - Accessibility updates to AlfMenuBarSelectItems
+* [AKU-872](https://issues.alfresco.com/jira/browse/AKU-872)       - Accessibility updates to AlfCheckableMenuItem
+* [AKU-873](https://issues.alfresco.com/jira/browse/AKU-873)       - Accessibility updates to AlfMenuBarSelect
+* [AKU-874](https://issues.alfresco.com/jira/browse/AKU-874)       - Support alternate true/false values on Checkbox
+* [AKU-882](https://issues.alfresco.com/jira/browse/AKU-882)       - Added alfresco/forms/controls/SelectedListItems
+* [AKU-896](https://issues.alfresco.com/jira/browse/AKU-896)       - Update clickable button area
+
+1.0.58:
+* [AKU-207](https://issues.alfresco.com/jira/browse/AKU-207)       - Add support for change type action
+* [AKU-820](https://issues.alfresco.com/jira/browse/AKU-820)       - Added visual progress indicator to UploadMonitor
+* [AKU-832](https://issues.alfresco.com/jira/browse/AKU-832)       - Update min/max actions on StickyPanel
+* [AKU-838](https://issues.alfresco.com/jira/browse/AKU-838)       - Test selectors for BaseFormControl
+* [AKU-839](https://issues.alfresco.com/jira/browse/AKU-839)       - Test selectors for AlfTabContainer
+* [AKU-846](https://issues.alfresco.com/jira/browse/AKU-846)       - Form dialog disable button behaviour
+* [AKU-852](https://issues.alfresco.com/jira/browse/AKU-852)       - Add fail icon to UploadMonitor
+* [AKU-860](https://issues.alfresco.com/jira/browse/AKU-860)       - Support for cancel request to join site
+* [AKU-862](https://issues.alfresco.com/jira/browse/AKU-862)       - Improve DND file upload highlighting behaviour
+* [AKU-864](https://issues.alfresco.com/jira/browse/AKU-864)       - UploadContainer style changes
+* [AKU-865](https://issues.alfresco.com/jira/browse/AKU-865)       - Prevent notification interaction blocking
+* [AKU-867](https://issues.alfresco.com/jira/browse/AKU-867)       - Improve error handling output
+* [AKU-875](https://issues.alfresco.com/jira/browse/AKU-875)       - Defensive coding around list loading message hiding
+
+1.0.57:
+* [AKU-834](https://issues.alfresco.com/jira/browse/AKU-834)       - Ensure FileSelect does not fire change event on selection of same file
+* [AKU-837](https://issues.alfresco.com/jira/browse/AKU-837)       - Externalise MultiSelectInput selectors for testing
+* [AKU-844](https://issues.alfresco.com/jira/browse/AKU-844)       - Added requestAnimationFrame shim for IE9 (for list fix)
+* [AKU-851](https://issues.alfresco.com/jira/browse/AKU-851)       - Ensure widgetsForUploadDisplay can be customized for upload services
+* [AKU-853](https://issues.alfresco.com/jira/browse/AKU-853)       - Improve customization options for upload dialogs
+* [AKU-855](https://issues.alfresco.com/jira/browse/AKU-855)       - Support warnIfNotAvailable message for Date renderer
+* [AKU-859](https://issues.alfresco.com/jira/browse/AKU-859)       - Ensure compactMode option on Paginator works correctly
+* [AKU-863](https://issues.alfresco.com/jira/browse/AKU-863)       - Support for renderFilter client properties for models defined within widgets with currentItem
+
 1.0.56:
 * [AKU-795](https://issues.alfresco.com/jira/browse/AKU-795)       - Cancel in-progress uploads from UploadMonitor
 * [AKU-796](https://issues.alfresco.com/jira/browse/AKU-796)       - Configurable action suppport in UploadMonitor
