@@ -1,5 +1,6 @@
 .alfresco-upload-UploadMonitor {
    box-sizing: border-box;
+   min-height: 20px;
    overflow: hidden;
    * {
       box-sizing: inherit;
@@ -26,6 +27,11 @@
          }
          &:last-child {
             padding-right: @upload-monitor-item-padding-right;
+         }
+      }
+      &__name {
+         &__content {
+            margin-right: 20px;
          }
       }
       &__progress {
@@ -130,7 +136,22 @@
             &__status__unsuccessful_icon {
                display: inline-block;
                margin-left: 10px;
-               vertical-align: middle;
+            }
+         }
+      }
+   }
+   &--use-ellipsis {
+      .alfresco-upload-UploadMonitor {
+         &__item {
+            &__name {
+               &__content {
+                  direction: rtl;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  unicode-bidi: bidi-override;
+                  white-space: nowrap;
+                  text-align: left;
+               }
             }
          }
       }

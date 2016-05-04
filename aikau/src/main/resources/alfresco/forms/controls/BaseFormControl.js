@@ -88,6 +88,7 @@
  * @mixes module:alfresco/forms/controls/FormControlValidationMixin
  * @mixes module:alfresco/core/Core
  * @mixes module:alfresco/forms/controls/utilities/RulesEngineMixin
+ * @mixes module:alfresco/lists/KeyboardNavigationSuppressionMixin
  * @extendSafe
  * @author Dave Draper
  * @author Richard Smith
@@ -99,6 +100,7 @@ define(["dojo/_base/declare",
         "alfresco/core/Core",
         "alfresco/forms/controls/FormControlValidationMixin",
         "alfresco/forms/controls/utilities/RulesEngineMixin",
+        "alfresco/lists/KeyboardNavigationSuppressionMixin",
         "dojo/text!./templates/BaseFormControl.html",
         "alfresco/core/topics",
         "alfresco/core/ObjectTypeUtils",
@@ -112,11 +114,13 @@ define(["dojo/_base/declare",
         "dojo/query",
         "dojo/dom-construct",
         "dojo/Deferred",
+        "dojo/on",
         "jquery"],
-        function(declare, _Widget, _Templated, _FocusMixin, AlfCore, FormControlValidationMixin, RulesEngineMixin, template, topics,
-                 ObjectTypeUtils, arrayUtils, lang, array, domStyle, domClass, Tooltip, domAttr, query, domConstruct, Deferred, $) {
+        function(declare, _Widget, _Templated, _FocusMixin, AlfCore, FormControlValidationMixin, RulesEngineMixin, 
+                 KeyboardNavigationSuppressionMixin, template, topics, ObjectTypeUtils, arrayUtils, lang, array, domStyle, 
+                 domClass, Tooltip, domAttr, query, domConstruct, Deferred, on, $) {
 
-   return declare([_Widget, _Templated, _FocusMixin, AlfCore, FormControlValidationMixin, RulesEngineMixin], {
+   return declare([_Widget, _Templated, _FocusMixin, AlfCore, FormControlValidationMixin, RulesEngineMixin, KeyboardNavigationSuppressionMixin], {
 
       /**
        * An array of the CSS files to use with this widget.
@@ -181,6 +185,17 @@ define(["dojo/_base/declare",
        * @default
        */
       fieldId: "",
+
+      /**
+       * When set to true, and this is a multi-value control, then the initial value will - if nothing
+       * is specifically set - be set to the first value available.
+       *
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.65
+       */
+      firstValueIsDefault: true,
 
       /**
        * The label identifying the data to provide. The value supplied will be checked against the available
@@ -298,6 +313,17 @@ define(["dojo/_base/declare",
        * @since 1.0.33
        */
       getPubSubOptionsImmediately: true,
+
+      /**
+       * Indicates that this form control can have a value which is a subset of the available
+       * options that can be chosen from. 
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.65
+       */
+      supportsMultiValue: false,
 
       /**
        * The default visibility status is always true (this can be overridden by extending controls).
@@ -910,9 +936,25 @@ define(["dojo/_base/declare",
        * @param {array} options The options to choose from
        */
       setOptionsValue: function alfresco_forms_controls_BaseFormControl__setOptionsValue(value, options) {
-         var optionsContainsValue = array.some(options, function(option) {
-            return option.value === value;
-         });
+         var optionsContainsValue = false;
+         if (options && options.length > 0)
+         {
+            if (!this.supportsMultiValue)
+            {
+               optionsContainsValue = array.some(options, function(option) {
+                  return option.value === value;
+               });
+            }
+            else
+            {
+               value = array.filter(value, function(currValue) {
+                  return  array.some(options, function(option) {
+                     return currValue === option.value;
+                  });
+               });
+               optionsContainsValue = value.length > 0;
+            }
+         }
 
          if (optionsContainsValue)
          {
@@ -920,7 +962,7 @@ define(["dojo/_base/declare",
             this.setValue(value);
             this.value = value;
          }
-         else if (options && options.length > 0)
+         else if (options && options.length > 0 && this.firstValueIsDefault)
          {
             this.setValue(options[0].value);
             this.value = options[0].value;
@@ -1031,6 +1073,10 @@ define(["dojo/_base/declare",
          {
             this.validationInProgressImgSrc = require.toUrl("alfresco/forms/controls/css/images/" + this.validationInProgressImg);
          }
+
+         // Make sure that the label is set, in case it's explicitly set as null and overrides the default...
+         this.label = this.label || "";
+
          this.validationInProgressAltText = this.message(this.validationInProgressAltText, {
             0: this.message(this.label)
          });
@@ -1156,7 +1202,7 @@ define(["dojo/_base/declare",
        * @param {object} payload This is expected to be an empty object or null.
        */
       onWidgetAddedToDocument: function alfresco_forms_controls_BaseFormControl__onWidgetAddedToDocument(/*jshint unused:false*/ payload) {
-         // jshint maxstatements:false
+         // jshint maxstatements:false,maxcomplexity:false
          if (!this.___addedToDocument && $.contains(document.body, this.domNode))
          {
             this.___addedToDocument = true;
@@ -1203,7 +1249,7 @@ define(["dojo/_base/declare",
             }
             else
             {
-               domStyle.set(this._titleRowNode, {display: "none"});
+               domClass.add(this.domNode, "alfresco-forms-controls-BaseFormControl--no-label");
             }
 
             // Set the description...
@@ -1257,6 +1303,13 @@ define(["dojo/_base/declare",
             {
                this.deferredValuePublication.resolve();
             }
+
+            on(this.domNode, "click", lang.hitch(this, function(evt) {
+               if (evt)
+               {
+                  evt.preventFocusTheft = true;
+               }
+            }));
          }
          else
          {
@@ -1333,6 +1386,23 @@ define(["dojo/_base/declare",
             this._pendingValidationFailureDisplay = false;
             this.showValidationFailure();
          }
+         this.suppressContainerKeyboardNavigation(false);
+         this.inherited(arguments);
+      },
+
+      /**
+       * This function is called whenever the form control gains focus. This results in the 
+       * [suppressContainerKeyboardNavigation]{@link module:alfresco/lists/KeyboardNavigationSuppressionMixin#suppressContainerKeyboardNavigation}
+       * function being called to ensure that when the form is placed inside a 
+       * [list]{@link module:alfresco/lists/AlfList} the [view]{@link module:alfresco/lists/views/AlfListView}
+       * does not use the key presses (typically the cursor keys) to navigate the user around items in the
+       * list.
+       *
+       * @instance
+       * @since 1.0.63
+       */
+      _onFocus: function alfresco_forms_controls_BaseFormControl___onFocus() {
+         this.suppressContainerKeyboardNavigation(true);
          this.inherited(arguments);
       },
 
@@ -1773,10 +1843,14 @@ define(["dojo/_base/declare",
          }
          else
          {
-            var v = lang.getObject(this.get("name"), false, values);
-            if (v !== undefined)
+            var name = this.get("name");
+            if (name)
             {
-               this.setValue(v);
+               var v = lang.getObject(this.get("name"), false, values);
+               if (typeof v !== "undefined")
+               {
+                  this.setValue(v);
+               }
             }
          }
       },

@@ -22,9 +22,9 @@ model.jsonModel = {
             publishTopic: "ALF_CREATE_DIALOG_REQUEST",
             publishPayload: {
                dialogId: "FD1",
-               dialogTitle: "Form Dialog 1",
+               dialogTitle: "<img ='><svg onload=\"window.titleHacked=true\"'>",
                additionalCssClasses: "custom-classes",
-               textContent: "Hello World",
+               textContent: "<img ='><svg onload=\"window.bodyHacked=true\"'>",
                publishOnShow: [
                   {
                      publishTopic: "DISPLAYED_FD1",
@@ -82,6 +82,10 @@ model.jsonModel = {
                formSubmissionTopic: "POST_DIALOG_2",
                formSubmissionPayloadMixin: {
                   bonusData: "test"
+               },
+               customFormConfig: {
+                  setValueTopic: "CHECK_FOR_MY_SUBSCRIBED_TOPIC",
+                  setValueTopicGlobalScope: true
                },
                contentWidth: "700px",
                contentHeight: "300px",

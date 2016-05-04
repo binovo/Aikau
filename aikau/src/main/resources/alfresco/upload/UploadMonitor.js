@@ -106,7 +106,19 @@ define(["alfresco/core/FileSizeMixin",
       maxUploadNameLength: 50,
 
       /**
-       * This collection of [PublishAction]{@link module:alfresco/renderers/PublishAction} widgets
+       * If set to true, this will override the [maxUploadNameLength property]{@see module:alfresco/upload/UploadMonitor#maxUploadNameLength}
+       * and any long filenames will instead be truncated instead by the available space, with an ellipsis used at the end of the string to
+       * denote any missing characters.
+       *
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.66
+       */
+      useEllipsisForLongFilenames: false,
+
+      /**
+       * <p>This collection of [PublishAction]{@link module:alfresco/renderers/PublishAction} widgets
        * will be displayed against each inprogress item in the upload monitor. The upload item
        * (containing relevant information) will be added as the current item, and the
        * [publishPayloadType]{@link module:alfresco/renderers/_PublishPayloadMixin#publishPayloadType}
@@ -114,7 +126,12 @@ define(["alfresco/core/FileSizeMixin",
        * if not specified. In effect, this means that you should normally only need to specify the
        * [publishTopic]{@link module:alfresco/renderers/PublishAction#publishTopic} and
        * [iconClass]{@link module:alfresco/renderers/PublishAction#iconClass} in the PublishAction
-       * config.
+       * config.</p>
+       *
+       * <p>The currentItem that's provided to the supplied action is an object with five properties.
+       * Specifically, three simple properties of fileId, fileSize (bytes) and fileName and two additional
+       * complex properties of fileObj (which is all the details of the upload object) and response
+       * (which is the server response - valid for finished uploads only).</p>
        *
        * @instance
        * @type {object[]}
@@ -195,6 +212,21 @@ define(["alfresco/core/FileSizeMixin",
       },
 
       /**
+       * Run after the widget has been created.
+       *
+       * @instance
+       * @override
+       * @since 1.0.65
+       * @listens module:alfresco/core/topics#UPLOAD_MODIFY_ITEM
+       */
+      postCreate: function alfesco_upload_UploadMonitor__postCreate() {
+         this.alfSubscribe(topics.UPLOAD_MODIFY_ITEM, lang.hitch(this, this.handleModifyItem));
+         if (this.useEllipsisForLongFilenames) {
+            domClass.add(this.domNode, this.baseClass + "--use-ellipsis");
+         }
+      },
+
+      /**
        * Create the actions widgets, ensure that the default publishPayloadType is set
        * to CURRENT_ITEM, and set the current item to be the supplied upload info.
        *
@@ -212,7 +244,7 @@ define(["alfresco/core/FileSizeMixin",
 
             // Grab the widgets property for this state
             var propName = "widgetsFor" + propType + "Actions",
-               widgets = this[propName];
+               widgets = this[propName] && lang.clone(this[propName]);
             if (widgets && widgets.length) {
 
                // Create state-specific class
@@ -221,12 +253,13 @@ define(["alfresco/core/FileSizeMixin",
                // Mix in the default payload type and a class to control visibility
                array.forEach(widgets, function(action) {
                   action.config = lang.mixin({
-                     publishPayloadType: "CURRENT_ITEM",
+                     publishPayloadType: "PROCESS",
                      publishGlobal: true,
-                     additionalCssClasses: actionClass + " " + actionStateClass
-                  }, action.config || {}, {
+                     publishPayloadItemMixin: true,
+                     additionalCssClasses: actionClass + " " + actionStateClass,
+                     publishPayloadModifiers: ["processCurrentItemTokens"],
                      currentItem: actionPayload
-                  });
+                  }, action.config || {});
                }, this);
 
                // Create the widgets under the appropriate node
@@ -256,7 +289,8 @@ define(["alfresco/core/FileSizeMixin",
             }, itemRow),
             itemNameContent = domConstruct.create("div", {
                className: this.baseClass + "__item__name__content",
-               textContent: this.getDisplayText(file)
+               textContent: this.getDisplayText(file),
+               title: this.getDisplayText(file, true)
             }, itemName),
             itemProgress = domConstruct.create("td", {
                className: this.baseClass + "__item__progress"
@@ -306,9 +340,10 @@ define(["alfresco/core/FileSizeMixin",
             id: fileId,
             file: file,
             actionPayload: {
-               fileId: fileId,
+               uploadId: fileId,
                fileSize: file.size,
-               fileName : file.name
+               fileName : file.name,
+               fileObj: file
             },
             nodes: {
                row: itemRow,
@@ -334,9 +369,9 @@ define(["alfresco/core/FileSizeMixin",
        * @param {object} error The details of why the file could not be uploaded.
        */
       addFailedFile: function alfesco_upload_UploadMonitor__addFailedFile(fileName, error) {
-         var uniqueFileId = fileName + Date.now();
+         var uniqueFileId = Date.now();
          while (this._uploads.hasOwnProperty(uniqueFileId)) {
-            uniqueFileId = fileName + Date.now();
+            uniqueFileId = Date.now();
          }
          this.addInProgressFile(uniqueFileId, {
             name: fileName
@@ -351,9 +386,10 @@ define(["alfresco/core/FileSizeMixin",
        *
        * @instance
        * @param {object} file The upload file
+       * @param {boolean} [doNotTruncate=false] If true then will prevent truncating the display text
        * @returns {string} The name of the upload to be deisplayed
        */
-      getDisplayText: function alfesco_upload_UploadMonitor__getDisplayText(file) {
+      getDisplayText: function alfesco_upload_UploadMonitor__getDisplayText(file, doNotTruncate) {
 
          // Create upload name as "filename.ext, xxx kB"
          var filename = file.name,
@@ -362,7 +398,9 @@ define(["alfresco/core/FileSizeMixin",
             uploadName = filename + separator + filesize;
 
          // If filename is too long, adjust
-         if (uploadName.length > this.maxUploadNameLength) {
+         if (this.useEllipsisForLongFilenames) {
+            uploadName = uploadName.split("").reverse().join("");
+         } else if (!doNotTruncate && uploadName.length > this.maxUploadNameLength) {
 
             // Calculate how long name can be
             var maxNameLength = this.maxUploadNameLength - filesize.length - separator.length;
@@ -407,16 +445,19 @@ define(["alfresco/core/FileSizeMixin",
             upload.nodes.progressBar.parentNode.removeChild(upload.nodes.progressBar);
             upload.nodes.progress.textContent = this.displayUploadPercentage ? "100%" : "";
             domConstruct.place(upload.nodes.row, this.successfulItemsNode, "first");
+            domClass.remove(upload.nodes.row, this.baseClass + "__item--finishing");
 
             // Parse the request to get the information about the resulting nodes that have been created
             // This information could be used to allow actions or links to be generated for the uploaded content
             // before the display is closed...
             if (request && request.responseText) {
-               var jsonResponse = JSON.parse(request.responseText);
-               lang.mixin(upload.actionPayload, {
-                  nodeRef: jsonResponse.nodeRef,
-                  fileName: jsonResponse.fileName
-               });
+               var response = request.responseText;
+               try {
+                  response = JSON.parse(response);
+               } catch (e) {
+                  this.alfLog("debug", "Unable to parse upload response as JSON", response);
+               }
+               upload.actionPayload.response = response;
             }
          } else {
             this.alfLog("warn", "Attempt to mark as complete an upload that is not being tracked (id=" + fileId + ")");
@@ -477,6 +518,28 @@ define(["alfresco/core/FileSizeMixin",
 
          } else {
             this.alfLog("warn", "Attempt to mark as failed an upload that is not being tracked (id=" + fileId + ")");
+         }
+      },
+
+      /**
+       * Handle modification requests for a specific item
+       *
+       * @instance
+       * @param {Object} payload The published payload
+       * @since 1.0.65
+       */
+      handleModifyItem: function alfesco_upload_UploadMonitor__handleModifyItem(payload) {
+         var upload;
+         if (payload && payload.uploadId && (upload = this._uploads[payload.uploadId]) && payload.action) {
+            switch (payload.action) {
+               case "REMOVE":
+                  var uploadRow = upload.nodes.row;
+                  uploadRow.parentNode.removeChild(uploadRow);
+                  break;
+               default:
+                  this.alfLog("warn", "Invalid action requested for modifying item: ", payload.action);
+                  break;
+            }
          }
       },
 

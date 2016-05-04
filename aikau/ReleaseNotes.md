@@ -1,4 +1,4 @@
-Aikau 1.0.61 Release Notes
+Aikau 1.0.66 Release Notes
 ===
 
 Previous deprecations:
@@ -47,6 +47,55 @@ Previous deprecations:
 
 Resolved issues:
 ---
+1.0.66:
+* [AKU-941](https://issues.alfresco.com/jira/browse/AKU-941)       - Add support for Smart Folders in alfresco/renderers/Thumbnail
+* [AKU-944](https://issues.alfresco.com/jira/browse/AKU-944)       - Improve encoding on data typed into MultiSelectInput
+* [AKU-946](https://issues.alfresco.com/jira/browse/AKU-946)       - Ensure list loading element does not block pointer events
+* [AKU-947](https://issues.alfresco.com/jira/browse/AKU-947)       - Improved rendering of long text on PushButton values
+* [AKU-949](https://issues.alfresco.com/jira/browse/AKU-949)       - Improved local storage handling in lists
+* [AKU-951](https://issues.alfresco.com/jira/browse/AKU-951)       - Ensure error messages are displayed on form controls without labels
+* [AKU-952](https://issues.alfresco.com/jira/browse/AKU-952)       - Improve TinyMCE configuration options
+* [AKU-953](https://issues.alfresco.com/jira/browse/AKU-953)       - Improve SelectedItemStateMixin value handling
+* [AKU-955](https://issues.alfresco.com/jira/browse/AKU-955)       - Improve rendering of upload display in FileUploadService
+
+1.0.65:
+* [AKU-907](https://issues.alfresco.com/jira/browse/AKU-907)       - Supoort line item removal from UploadMonitor
+* [AKU-929](https://issues.alfresco.com/jira/browse/AKU-929)       - Support close Notification by published topic
+* [AKU-932](https://issues.alfresco.com/jira/browse/AKU-932)       - Ensure localization of menu item tooltips
+* [AKU-933](https://issues.alfresco.com/jira/browse/AKU-933)       - Optional view model processing in list views
+* [AKU-934](https://issues.alfresco.com/jira/browse/AKU-934)       - Better rendering in Date for deleted users
+* [AKU-937](https://issues.alfresco.com/jira/browse/AKU-937)       - Fix scoping issue in DocumentPicker
+* [AKU-938](https://issues.alfresco.com/jira/browse/AKU-938)       - Ensure form value initialization consistency
+* [AKU-940](https://issues.alfresco.com/jira/browse/AKU-940)       - Fixed drop-down arrow alignment issue in menus
+* [AKU-943](https://issues.alfresco.com/jira/browse/AKU-943)       - Fixed SelectList item selection on list rendering
+* [AKU-948](https://issues.alfresco.com/jira/browse/AKU-948)       - Support deselect in non-multiMode PushButton
+
+1.0.64:
+* [AKU-883](https://issues.alfresco.com/jira/browse/AKU-883)       - Added ToggleStateActions widget
+* [AKU-893](https://issues.alfresco.com/jira/browse/AKU-893)       - Improved configuration options for Paginator
+* [AKU-924](https://issues.alfresco.com/jira/browse/AKU-924)       - Ensure page back/forward works with infinite scrolling Document Library
+* [AKU-926](https://issues.alfresco.com/jira/browse/AKU-926)       - Ensure empty string itemsAttribute property works with OptionsService
+* [AKU-927](https://issues.alfresco.com/jira/browse/AKU-927)       - Fixed scoping issue with CommentsList
+* [AKU-928](https://issues.alfresco.com/jira/browse/AKU-928)       - Improved content creation failure experience
+* [AKU-930](https://issues.alfresco.com/jira/browse/AKU-930)       - Fixed edit site details behaviour
+
+1.0.63:
+* [AKU-411](https://issues.alfresco.com/jira/browse/AKU-411)       - Versionable lib file support
+* [AKU-777](https://issues.alfresco.com/jira/browse/AKU-777)       - Prevent MultiSelectInput opening when deleting item (IE only)
+* [AKU-913](https://issues.alfresco.com/jira/browse/AKU-913)       - Ensure upload button works
+* [AKU-914](https://issues.alfresco.com/jira/browse/AKU-914)       - Notifications support nested widgets
+* [AKU-916](https://issues.alfresco.com/jira/browse/AKU-916)       - Prevent page scrolling on dialog open
+* [AKU-921](https://issues.alfresco.com/jira/browse/AKU-921)       - Support cursor key use in forms in views
+* [AKU-922](https://issues.alfresco.com/jira/browse/AKU-922)       - Ensure service exception at startup doesn't cause widgets to render before services
+* [AKU-923](https://issues.alfresco.com/jira/browse/AKU-923)       - Prevent XSS injection in leave site action
+
+1.0.62:
+* [AKU-842](https://issues.alfresco.com/jira/browse/AKU-842)       - Ensure infinite scrolling Document Library can be sorted via menu
+* [AKU-898](https://issues.alfresco.com/jira/browse/AKU-898)       - Support for UploadMonitor completed upload actions
+* [AKU-904](https://issues.alfresco.com/jira/browse/AKU-904)       - Added support for additional form config in form dialogs
+* [AKU-908](https://issues.alfresco.com/jira/browse/AKU-908)       - Inline edit renderers use buttons rather than labels for save/cancel
+* [AKU-912](https://issues.alfresco.com/jira/browse/AKU-912)       - Removal of hardcoded "Relevance" sorting from SearchBox links
+
 1.0.61:
 * [AKU-757](https://issues.alfresco.com/jira/browse/AKU-757)       - Prevent browser popup blocker on download requests
 * [AKU-903](https://issues.alfresco.com/jira/browse/AKU-903)       - Prevent click bubbling on PublishAction

@@ -1,3 +1,4 @@
+/*jshint browser:true*/
 /**
  * Copyright (C) 2005-2016 Alfresco Software Limited.
  *
@@ -20,77 +21,57 @@
 /**
  * @author Dave Draper
  */
-define(["intern!object",
-        "intern/chai!assert",
-        "intern/chai!expect",
-        "require",
-        "alfresco/TestCommon"], 
-        function (registerSuite, assert, expect, require, TestCommon) {
+define(["module",
+        "alfresco/defineSuite",
+        "intern/chai!assert"],
+        function(module, defineSuite, assert) {
 
-registerSuite(function(){
-   var browser;
-
-   return {
+   defineSuite(module, {
       name: "DateLink Tests",
+      testPage: "/DateLink",
 
-      setup: function() {
-         browser = this.remote;
-         return TestCommon.loadTestWebScript(this.remote, "/DateLink", "DateLink Tests").end();
-      },
-
-      beforeEach: function() {
-         browser.end();
-      },
-
-     "Check the first date is rendered correctly": function () {
+      "Check the first date is rendered correctly": function() {
          // Test that the dates are rendered as expected. The model uses a very old ISO date which should ensure
          // that we get a relative date in the form "Modified over X years ago" so we're going to use a regular
          // expression that should continue to work in the future as the date gets further into the past
-         return browser.findByCssSelector("#CUSTOM_PROPS .value")
+         return this.remote.findByCssSelector("#CUSTOM_PROPS .value")
             .getVisibleText()
             .then(function(resultText) {
-               assert(/(Modified over \d+ years ago by Brian Griffin)/g.test(resultText), "Test #1 - Custom property not rendered correctly: " + resultText);
+               assert(/(Modified over \d+ years ago by TestSök <img ='><svg onload=\"window.hacked=true\"'>)/g.test(resultText), "Test #1 - Custom property not rendered correctly: " + resultText);
             });
       },
 
       "Check the second date is rendered correctly": function() {
-         return browser.findByCssSelector("#STANDARD_PROPS .value")
+         return this.remote.findByCssSelector("#STANDARD_PROPS .value")
             .getVisibleText()
             .then(function(resultText) {
                assert(/(Modified over \d+ years ago by Chris Griffin)/g.test(resultText), "Test #2 - Standard property not rendered correctly: " + resultText);
             });
       },
 
+      "No XSS attacks were successful": function() {
+         return this.remote.execute(function() {
+               return window.hacked;
+            })
+            .then(function(hacked) {
+               assert.isFalse(!!hacked);
+            });
+      },
+
       "Check the date click published as expected": function() {
-         return browser.findByCssSelector("#CUSTOM_PROPS .value")
+         return this.remote.findByCssSelector("#CUSTOM_PROPS .value")
             .click()
-            .end()
+         .end()
 
-         .findByCssSelector(TestCommon.pubSubDataCssSelector("last", "alfTopic", "ALF_NAVIGATE_TO_PAGE"))
-            .then(
-               function(){},
-               function(){assert(false, "The datelink did not publish on 'ALF_NAVIGATE_TO_PAGE' after mouse clicks");}
-            );
-      },
-
-      "Check the date click published the payload as expected (1)": function() {
-         return browser.findByCssSelector(TestCommon.pubSubDataCssSelector("last", "type", "PAGE_RELATIVE"))
-            .then(
-               function(){},
-               function(){assert(false, "The datelink did not publish the payload with 'type' as 'PAGE_RELATIVE'");}
-            );
-      },
-
-      "Check the date click published the payload as expected (2)": function() {
-         return browser.findByCssSelector(TestCommon.pubSubDataCssSelector("last", "url", "/1/2/3/4/5"))
-            .then(
-               function(){},
-               function(){assert(false, "The datelink did not publish the payload with 'url' as '/1/2/3/4/5'");}
-            );
+         .getLastPublish("ALF_NAVIGATE_TO_PAGE")
+            .then(function(payload) {
+               assert.propertyVal(payload, "type", "PAGE_RELATIVE");
+               assert.propertyVal(payload, "url", "/1/2/3/4/5");
+            });
       },
 
       "Test other configurations": function() {
-         return browser.findByCssSelector("#STANDARD_PROPS .value")
+         return this.remote.findByCssSelector("#STANDARD_PROPS .value")
             .click()
             .end()
 
@@ -100,11 +81,6 @@ registerSuite(function(){
 
          .findByCssSelector("#BROKEN_2 .value")
             .click();
-      },
-
-      "Post Coverage Results": function() {
-         TestCommon.alfPostCoverageResults(this, browser);
       }
-   };
    });
 });

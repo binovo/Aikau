@@ -201,6 +201,19 @@ define([],function() {
       CONTENT_CREATED: "ALF_CONTENT_CREATED",
 
       /**
+       * This is fired when content cannot be created (typically by the 
+       * [ContentService]{@link module:alfresco/services/ContentService})
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.64
+       *
+       * @event
+       */
+      CONTENT_CREATION_FAILED: "ALF_CONTENT_CREATION_FAILURE",
+
+      /**
        * This is fired when content is deleted (typically by the [ContentService]{@link module:alfresco/services/ContentService})
        * and was added to that [trees]{@link module:alfresco/navigation/PathTree} would be able to refresh themselves
        * following content deletion.
@@ -231,6 +244,22 @@ define([],function() {
        * @property {string} [confirmButtonLabel] The label of the picker confirmation button - default is the generic "copy" button confirmation
        */
       COPY_OR_MOVE: "ALF_COPY_OR_MOVE_REQUEST",
+
+      /**
+       * This can be published to make a request to create content in the Alfresco Repository. It is 
+       * typically handled by the [ContentService]{@link module:alfresco/services/ContentService}.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.64
+       *
+       * @event
+       * @param {object} [currentNode] The metadata about the node in which to create content
+       * @param {string} [currentNode.nodeRef] The nodeRef of the node in which to create content
+       * @param {string} [type="cm:content"] The type of content to create
+       */
+      CREATE_CONTENT_REQUEST: "ALF_CREATE_CONTENT_REQUEST",
 
       /**
        * This can be published to make a request to create a dialog. It is typically handled by the
@@ -342,6 +371,15 @@ define([],function() {
        *
        * @event
        * @property {string} message The message to be displayed
+       * @property {string} [autoClose=true] Whether the notification should automatically close itself
+       * @property {number} [wordsPerSecond=5] How many words it is assumed one can read per second (decrease this
+       *                                       number to increase the duration of the notification being displayed
+       *                                       on-screen - assuming autoClose hasn't been disabled)
+       * @property {object[]} [widgets] Widgets to be inserted into the notification below the message. Note that
+       *                                any widgets required must be either statically declared in the page model
+       *                                or in a widgets property of a custom widget/service, or be specifically
+       *                                required by a custom widget/service.
+       * @property {string} [closeTopic] If this topic is published to, then the notification will be closed
        * @property {string} [publishTopic] A topic to be published after the notification has closed
        * @property {object} [publishPayload] The payload to be published after the notification has closed
        * @property {boolean} [publishGlobal] Whether to publish the topic globally
@@ -1347,6 +1385,34 @@ define([],function() {
       TINYMCE_EDITOR_FOCUSED: "ALF_TINYMCE_EDITOR_FOCUSED",
 
       /**
+       * A generic topic used by the [ToggleStateActions]{@link module:alfresco/renderers/ToggleStateActions}
+       * widget for making requests to toggle the widget to the off state. Typically this would be expected
+       * to be overridden with a custom topic.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.64
+       *
+       * @event
+       */
+      TOGGLE_OFF: "ALF_TOGGLE_OFF",
+
+      /**
+       * A generic topic used by the [ToggleStateActions]{@link module:alfresco/renderers/ToggleStateActions}
+       * widget for making requests to toggle the widget to the on state. Typically this would be expected
+       * to be overridden with a custom topic.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.64
+       *
+       * @event
+       */
+      TOGGLE_ON: "ALF_TOGGLE_ON",
+
+      /**
        * This can be published to change the current field being used to sort lists.
        * 
        * @instance
@@ -1397,6 +1463,24 @@ define([],function() {
        * @event
        */
       UPLOAD_CANCELLATION: "ALF_UPLOAD_DIALOG_CANCEL_CLICK",
+
+      /**
+       * This topic can be published to to request modification of a line-item in the
+       * [UploadMonitor widget]{@link module:alfresco/upload/UploadMonitor}.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.65
+       *
+       * @event
+       * @property {String} uploadId The ID of the upload item to modify. This will be
+       *                             passed by every configured action when it publishes
+       *                             for a specific upload.
+       * @property {String} action The desired action, which must be "REMOVE". More actions
+       *                           will be added later.
+       */
+      UPLOAD_MODIFY_ITEM: "ALF_UPLOAD_MODIFY_ITEM",
 
       /**
        * This topic is published to request an upload.

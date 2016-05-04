@@ -18,7 +18,7 @@ model.jsonModel = {
          config: {
             currentItem: {
                modifiedOn: "2000-04-11T12:42:02+00:00",
-               modifiedBy: "Brian Griffin"
+               modifiedBy: "TestSök <img ='><svg onload=\"window.hacked=true\"'>"
             },
             modifiedDateProperty: "modifiedOn",
             modifiedByProperty: "modifiedBy",
@@ -37,6 +37,22 @@ model.jsonModel = {
                      },
                      modifier: {
                         displayName: "Chris Griffin"
+                     }
+                  }
+               }
+            },
+            renderOnNewLine: true
+         }
+      },
+      {
+         id: "STANDARD_PROPS_MISSING_USER",
+         name: "alfresco/renderers/Date",
+         config: {
+            currentItem: {
+               jsNode: {
+                  properties: {
+                     modified: {
+                        iso8601: "2000-04-11T12:42:02+00:00"
                      }
                   }
                }
@@ -69,7 +85,7 @@ model.jsonModel = {
          }
       },
       {
-         name: "alfresco/logging/SubscriptionLog"
+         name: "alfresco/logging/DebugLog"
       }
    ]
 };
