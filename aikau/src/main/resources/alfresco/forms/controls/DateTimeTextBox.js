@@ -94,6 +94,33 @@ define(["alfresco/core/CoreWidgetProcessing",
       },
 
       /**
+       * Extends the [inherited function]{@link module:alfresco/forms/controls/BaseFormControl#formControlValueChange}
+       * to format the new date value correctly.
+       *
+       * @instance
+       * @param {string} attributeName
+       * @param {object} oldValue
+       * @param {object} value
+       */
+      formControlValueChange: function alfresco_forms_controls_DateTimeTextBox__formControlValueChange(attributeName, oldValue, value) {
+         if (typeof value === "undefined" || value === null || value === "")
+         {
+            value = null
+         } else if (value instanceof Date)
+         {
+            value = stamp.toISOString(value, { selector: 'datetime' });
+         }
+         if (typeof oldValue === "undefined"|| oldValue === null || oldValue === "")
+         {
+            oldValue = null;
+         } else if (oldValue instanceof Date)
+         {
+            oldValue = stamp.toISOString(oldValue, { selector: 'datetime' });
+         }
+         this.inherited(arguments, [attributeName, oldValue, value]);
+      },
+
+      /**
        * Construct the config for the wrapped control.
        *
        * @instance

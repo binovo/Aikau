@@ -99,7 +99,7 @@ define(["alfresco/core/Core",
             var time = this.timeNode.get('value');
 
             if (!date || !time) {
-               return undefined;
+               return null;
             }
 
             /* 
