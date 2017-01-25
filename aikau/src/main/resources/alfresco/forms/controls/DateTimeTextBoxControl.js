@@ -183,8 +183,9 @@ define(["alfresco/core/Core",
          setValue: function alfresco_forms_controls_DateTimeTextBoxControl__setValue(value) {
 
             // Discard null, undefined and empty-string values
-            if (value === null || typeof value === "undefined") {
-               this.alfLog("warn", "setValue() not completed as invalid value passed to DateTimeTextBoxControl (" + value + ")");
+            if (value === null || typeof value === "undefined" || value === "") {
+               this.dateNode.set('value', null);
+               this.timeNode.set('value', null);
                return;
             }
 
