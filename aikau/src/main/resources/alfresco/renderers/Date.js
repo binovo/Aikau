@@ -51,8 +51,9 @@ define(["dojo/_base/declare",
         "alfresco/renderers/Property", 
         "alfresco/core/TemporalUtils",
         "alfresco/core/UrlUtilsMixin",
+        "alfresco/core/ObjectTypeUtils",
         "dojo/_base/lang"], 
-        function(declare, Property, TemporalUtils, UrlUtilsMixin, lang) {
+        function(declare, Property, TemporalUtils, UrlUtilsMixin, ObjectTypeUtils, lang) {
 
    return declare([Property, UrlUtilsMixin, TemporalUtils], {
       
@@ -65,6 +66,17 @@ define(["dojo/_base/declare",
        */
       i18nRequirements: [{i18nFile: "./i18n/Date.properties"}],
       
+      /**
+       * An optional format to apply to the date. This is only used when 
+       * [simple]{@link module:alfresco/renderers/Date#simple} is configured to be true.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.88
+       */
+      format: null,
+
       /**
        * This can be set to override the default property to use to get the ISO 8601 
        * modification date which (in dot-notation) will be "jsNode.properties.modified.iso8601".
@@ -90,6 +102,44 @@ define(["dojo/_base/declare",
       modifiedByProperty: null,
 
       /**
+       * An optional property to complement 
+       * [modifiedByProperty]{@link module:alfresco/renderers/Date#modifiedByProperty} for the cases
+       * when only "firstName" and "lastName" attributes are available (rather than "displayName").
+       * In order to use this the [modifiedByMessage]{@link module:alfresco/renderers/Date#modifiedByMessage}
+       * will need to be overridden with a message that accepts a third token.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.86
+       */
+      modifiedByLastNameProperty: null,
+
+      /**
+       * The message to display. This takes the form "Modified <some time> ago by <user>" and is
+       * used when a [modifiedByProperty]{@link module:alfresco/renderers/Date#modifiedByProperty} 
+       * is available.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.86
+       */
+      modifiedByMessage: "details.modified-by",
+
+      /**
+       * The message to display. This takes the form "Modified <some time> ago" and is
+       * used when a [modifiedByProperty]{@link module:alfresco/renderers/Date#modifiedByProperty} 
+       * is NOT available.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.86
+       */
+      modifiedMessage: "details.modified-by.missing-user",
+
+      /**
        * Indicates whether to simply display the date without rendering it within a specific message.
        *
        * @instance
@@ -104,24 +154,32 @@ define(["dojo/_base/declare",
        * @instance
        */
       postMixInProperties: function alfresco_renderers_Date__postMixInProperties() {
+         // jshint maxcomplexity:false
+         if (this.label)
+         {
+            this.label = this.message(this.label) + ": ";
+         }
+         else
+         {
+            this.label = "";
+         }
+
          if (this.simple && this.propertyToRender)
          {
-            var dateProperty = lang.getObject(this.propertyToRender, false, this.currentItem);
-            if (dateProperty)
+            if (ObjectTypeUtils.isString(this.propertyToRender) &&
+               ObjectTypeUtils.isObject(this.currentItem) &&
+               lang.exists(this.propertyToRender, this.currentItem))
             {
-               this.renderedValue = this.renderDate(dateProperty);
-            }
-            else if (this.warnIfNotAvailable)
-            {
-               var warningMessage = this.getNotAvailableMessage();
-               this.renderedValue = this.renderedValuePrefix + warningMessage + this.renderedValueSuffix;
-               this.warningDisplayed = true;
+               this.renderPropertyNotFound = false;
+               var dateProperty = lang.getObject(this.propertyToRender, false, this.currentItem);
+               this.originalRenderedValue = this.renderedValue = this.renderDate(dateProperty, this.format);
             }
             else
             {
-               this.alfLog("warn", "Could not find '" + this.propertyToRender + "' in currentItem", this);
-               this.renderedValue = "";
+               this.alfLog("log", "Property does not exist:", this);
             }
+
+            this.renderedValue = this.generateRendering(this.renderedValue);
          }
          else
          {
@@ -130,22 +188,28 @@ define(["dojo/_base/declare",
                this.modifiedDateProperty = "jsNode.properties.modified.iso8601";
             }
             var modifiedDate = lang.getObject(this.modifiedDateProperty, false, this.currentItem);
-            
+
             if (!this.modifiedByProperty)
             {
                this.modifiedByProperty = "jsNode.properties.modifier.displayName";
             }
+            var lastName = "";
+            if (this.modifiedByLastNameProperty)
+            {
+               lastName = lang.getObject(this.modifiedByLastNameProperty, false, this.currentItem);
+            }
             var modifiedBy = lang.getObject(this.modifiedByProperty, false, this.currentItem);
             if (modifiedBy)
             {
-               this.renderedValue = this.message("details.modified-by", {
-                  0: this.getRelativeTime(modifiedDate), 
-                  1: this.encodeHTML(modifiedBy)
+               this.renderedValue = this.message(this.modifiedByMessage || "details.modified-by", {
+                  0: this.getRelativeTime(modifiedDate),
+                  1: this.encodeHTML(modifiedBy),
+                  2: this.encodeHTML(lastName || "")
                });
             }
             else
             {
-               this.renderedValue = this.message("details.modified-by.missing-user", {
+               this.renderedValue = this.message(this.modifiedMessage || "details.modified-by.missing-user", {
                   0: this.getRelativeTime(modifiedDate)
                });
             }

@@ -18,7 +18,73 @@
  */
 
 /**
- * This is the root list module.
+ * <p>This is the simplest widget for rendering lists of data. The data is retrieved by publishing a
+ * [loadDataPublishTopic]{@link module:alfresco/lists/AlfList#loadDataPublishTopic} that will
+ * need to be subscribed to by a service included on the page. Depending upon the service handling
+ * the request it may be necessary to configure a
+ * [loadDataPublishPayload]{@link module:alfresco/lists/AlfList#loadDataPublishPayload} to provide
+ * additional information on the data that should be loaded.</p>
+ * <p>Lists should be configured with at least one [AlfListView]{@link module:alfresco/lists/views/AlfListView}
+ * (or a widget that extends it) to render the loaded data. The most basic view that can be used
+ * would be the [HtmlListView]{@link module:alfresco/lists/views/HtmlListView} that renders a basic
+ * bullet list of the data</p>
+ * <p>If the list is not rendered on the page when first loaded (for example it might be displayed
+ * in a [dialog]{@link module:alfresco/dialogs/AlfDialog} or an initially hidden tab in an
+ * [AlfTabContainer]{@link module:alfresco/layouts/AlfTabContainer}) then it will be necessary to configure
+ * the [waitForPageWidgets]{@link module:alfresco/lists/AlfList#waitForPageWidgets} to be false to
+ * avoid the list waiting for an event that will never be fired before attempting to load data).</p>
+ * <p>If you need to use a list with greater capabilities then consider using the
+ * [AlfHashList]{@link module:alfresco/lists/AlfHashList}, 
+ * [AlfSortablePaginatedList]{@link module:alfresco/lists/AlfSortablePaginatedList} or
+ * [AlfFilteredList]{@link module:alfresco/lists/AlfFilteredList} as these incrementally provide
+ * additional capabilities for URL hashing, sorting and paginating and filtering respectively.</p>
+ * <p>Depending upon the payload of the data returned by the service it might be necessary to configure
+ * the [itemsProperty]{@link module:alfresco/lists/AlfList#itemsProperty} to identify the attribute 
+ * containing the array of items to be rendered.<p>
+ * <p>It is also possible to explicitly define the data to be listed by setting the 
+ * [currentData]{@link module:alfresco/lists/AlfList#currentData}. This should be configured to be an
+ * object containing an "items" attribute that is the data to be rendered.</p>
+ * 
+ * @example <caption>Basic list with hard-coded data</caption>
+ * {
+ *   name: "alfresco/lists/AlfList",
+ *   config: {
+ *     currentData: {
+ *       items: [
+ *         { value: "one"},
+ *         { value: "two"}
+ *       ]
+ *     },
+ *     widgets: [
+ *       {
+ *         name: "alfresco/lists/views/HtmlListView",
+ *         config: {
+ *           propertyToRender: "value"
+ *         }
+ *       }
+ *     ]
+ *   }
+ * }
+ *
+ * @example <caption>Basic list loading users from the Repository via the CrudService</caption>
+ * {
+ *   name: "alfresco/lists/AlfList",
+ *   config: {
+ *     loadDataPublishTopic: "ALF_CRUD_GET_ALL",
+ *     loadDataPublishPayload: {
+ *       url: "api/people"
+ *     },
+ *     itemsProperty: "people",
+ *     widgets: [
+ *       {
+ *         name: "alfresco/lists/views/HtmlListView",
+ *         config: {
+ *           propertyToRender: "userName"
+ *         }
+ *       }
+ *     ]
+ *   }
+ * }
  *
  * @module alfresco/lists/AlfList
  * @extends external:dijit/_WidgetBase
@@ -49,7 +115,7 @@ define(["dojo/_base/declare",
         "dojo/io-query",
         "dojo/sniff"],
         function(declare, _WidgetBase, _TemplatedMixin, template, AlfCore, CoreWidgetProcessing, topics, WidgetsCreator, SelectedItemStateMixin,
-                 DynamicWidgetProcessingTopics, AlfDocumentListView, AlfCheckableMenuItem, aspect, array, lang, domConstruct,
+                 DynamicWidgetProcessingTopics, AlfListView, AlfCheckableMenuItem, aspect, array, lang, domConstruct,
                  domClass, ioQuery, sniff) {
 
    return declare([_WidgetBase, _TemplatedMixin, AlfCore, CoreWidgetProcessing, SelectedItemStateMixin, DynamicWidgetProcessingTopics], {
@@ -106,6 +172,29 @@ define(["dojo/_base/declare",
        * @default
        */
       currentData: null,
+
+      /**
+       * A property from the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#currentItem} that should be
+       * used as the list of items to be displayed. This is useful when rendering a list within a list.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.85
+       */
+      currentItemPropertyForDataItems: null,
+
+      /**
+       * An internally used attribute to hold a UUID for the any in-flight request. This allows the request to be
+       * cancelled if a subsequent request is issued before the in-flight request completes. This should not be
+       * configured.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.75
+       */
+      currentRequestId: null,
 
       /**
        * This is the message to display when data cannot be loaded Message keys will be localized
@@ -210,13 +299,38 @@ define(["dojo/_base/declare",
 
       /**
        * This is the topic to publish to make requests to retrieve data to populate the list
-       * with. This can be overridden with alternative topics to obtain different data sets
+       * with. This can be overridden with alternative topics to obtain different data sets.
+       * Defaults to [GET_DOCUMENT_LIST]{@link module:alfresco/core/topics#GET_DOCUMENT_LIST}
        *
        * @instance
        * @type {string}
        * @default
        */
-      loadDataPublishTopic: "ALF_RETRIEVE_DOCUMENTS_REQUEST",
+      loadDataPublishTopic: topics.GET_DOCUMENT_LIST,
+
+      /**
+       * If not configured this will automatically be generated to be the 
+       * [loadDataPublishTopic]{@link module:alfresco/lists/AlfList#loadDataPublishTopic}
+       * appended with "_FAILURE".
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.74
+       */
+      loadDataFailureTopic: null,
+
+      /**
+       * If not configured this will automatically be generated to be the 
+       * [loadDataPublishTopic]{@link module:alfresco/lists/AlfList#loadDataPublishTopic}
+       * appended with "_SUCCESS".
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.74
+       */
+      loadDataSuccessTopic: null,
 
       /**
        * The property in the data response that is a metadata attribute containing additional information
@@ -257,6 +371,16 @@ define(["dojo/_base/declare",
        * @type {Boolean}
        */
       requestInProgress: false,
+
+      /**
+       * An internally used attribute used to indicate whether or not a request is pending to be performed
+       * as soon as the current request completes.
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       */
+      pendingLoadRequest: false,
 
       /**
        * The property in the response that indicates the starting index of overall data to request.
@@ -367,7 +491,7 @@ define(["dojo/_base/declare",
       waitForPageWidgets: true,
 
       /**
-       * The widgets processed by AlfDocumentList should all be instances of "alfresco/documentlibrary/AlfDocumentListView".
+       * The widgets processed by AlfDocumentList should all be instances of "alfresco/lists/views/AlfListView".
        * Any widget that is instantiated that does not inherit from that class will not be included as a view.
        *
        * @instance
@@ -417,6 +541,17 @@ define(["dojo/_base/declare",
       _filterDelay: 1000,
 
       /**
+       * The key of the item to attempt to focus on in the loaded results. This can be set via the
+       * payload handled by [onReloadData]{@link module:alfresco/lists/AlfList#onReloadData}.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.77
+       */
+      _focusItemKey: null,
+
+      /**
        * This timeout pointer is used to ensure the loading message doesn't display forever
        *
        * @instance
@@ -445,6 +580,14 @@ define(["dojo/_base/declare",
        * @instance
        */
       postMixInProperties: function alfresco_lists_AlfList__postMixInProperties() {
+         if (!this.loadDataFailureTopic)
+         {
+            this.loadDataFailureTopic = this.loadDataPublishTopic + "_FAILURE";
+         }
+         if (!this.loadDataSuccessTopic)
+         {
+            this.loadDataSuccessTopic = this.loadDataPublishTopic + "_SUCCESS";
+         }
          this.setupSubscriptions();
          this.setDisplayMessages();
       },
@@ -458,8 +601,8 @@ define(["dojo/_base/declare",
       setupSubscriptions: function alfresco_lists_AlfList__setupSubscriptions() {
          this.alfSubscribe(this.reloadDataTopic, lang.hitch(this, this.onReloadData));
          this.alfSubscribe(this.viewSelectionTopic, lang.hitch(this, this.onViewSelected));
-         this.alfSubscribe(this.loadDataPublishTopic + "_SUCCESS", lang.hitch(this, this.onDataLoadSuccess));
-         this.alfSubscribe(this.loadDataPublishTopic + "_FAILURE", lang.hitch(this, this.onDataLoadFailure));
+         this.alfSubscribe(this.loadDataSuccessTopic, lang.hitch(this, this.onDataLoadSuccess));
+         this.alfSubscribe(this.loadDataFailureTopic, lang.hitch(this, this.onDataLoadFailure));
          this.alfSubscribe(this.requestInProgressTopic, lang.hitch(this, this.onRequestInProgress));
          this.alfSubscribe(this.requestFinishedTopic, lang.hitch(this, this.onRequestFinished));
          if (this.useInfiniteScroll)
@@ -584,6 +727,14 @@ define(["dojo/_base/declare",
       onPageWidgetsReady: function alfresco_lists_AlfList__onPageWidgetsReady(/* jshint unused:false*/ payload) {
          this.alfUnsubscribe(this.pageWidgetsReadySubcription);
          this._readyToLoad = true;
+         
+         if (this.currentItemPropertyForDataItems && this.currentItem)
+         {
+            this.currentData = {
+               items: lang.getObject(this.currentItemPropertyForDataItems, false, this.currentItem) || []
+            };
+         }
+         
          if (this.currentData)
          {
             this.processLoadedData(this.currentData);
@@ -650,17 +801,42 @@ define(["dojo/_base/declare",
                this.viewAspectHandles[this._currentlySelectedView] = newAspect;
 
                this.copyViewData(oldView, newView);
-               newView.renderView(this.useInfiniteScroll);
-
-               // Clear up the old view...
-               oldView.clearOldView();
-               oldView.destroy();
-
-               // Show the view...
-               this.viewMap[this._currentlySelectedView] = newView;
-               this.showView(newView);
+               
+               // As part of the performance improvements (see AKU-1142) there is a switch
+               // to using native Promises in view rendering. The AlfListView renderView 
+               // function has been adapted to return a promise but for backwards compatibility
+               // we need to retain the previous code path (which should be followed when 
+               // rendering a view does not return a promise)...
+               var renderedView = newView.renderView(this.useInfiniteScroll);
+               if (renderedView && typeof renderedView.then === "function")
+               {
+                  renderedView.then(lang.hitch(this, this.onNewViewRendered, oldView, newView));
+               }
+               else
+               {
+                  this.onNewViewRendered(oldView, newView);
+               }
             }
         }
+      },
+
+      /**
+       *
+       * @param {object}   oldView The previous view that is being replaced
+       * @param {object}   newView The view that has now been rendered
+       * @param {object[]} renderedItems The items rendered (this should be returned)
+       * @return {Promise|object[]} The promise of the items rendered in the view
+       * @since 1.0.101
+       */
+      onNewViewRendered: function alfresco_lists_AlfList__onViewRendered(oldView, newView, renderedItems) {
+         // Clear up the old view...
+         oldView.clearOldView();
+         oldView.destroy();
+
+         // Show the view...
+         this.viewMap[this._currentlySelectedView] = newView;
+         this.showView(newView);
+         return renderedItems;
       },
 
       /**
@@ -765,7 +941,7 @@ define(["dojo/_base/declare",
 
       /**
        * This is called from [allWidgetsProcessed]{@link module:alfresco/lists/AlfList#allWidgetsProcessed} for
-       * each widget defined. Only widgets that inherit from [AlfDocumentListView]{@link module:alfresco/lists/views/AlfListView}
+       * each widget defined. Only widgets that inherit from [AlfListView]{@link module:alfresco/lists/views/AlfListView}
        * will be successfully registered.
        *
        * @instance
@@ -773,7 +949,7 @@ define(["dojo/_base/declare",
        * @param {number} index
        */
       registerView: function alfresco_lists_AlfList__registerView(view, index) {
-         if (view.isInstanceOf(AlfDocumentListView))
+         if (view.isInstanceOf(AlfListView))
          {
             this.alfLog("log", "Registering view", view);
             var viewSelectionConfig = view.getViewSelectionConfig();
@@ -790,7 +966,7 @@ define(["dojo/_base/declare",
          }
          else
          {
-            this.alfLog("warn", "The following widget was provided as a view, but it does not inherit from 'alfresco/documentlibrary/AlfDocumentListView'", view);
+            this.alfLog("warn", "The following widget was provided as a view, but it does not inherit from 'alfresco/lists/views/AlfListView'", view);
          }
       },
 
@@ -963,8 +1139,22 @@ define(["dojo/_base/declare",
                setTimeout(lang.hitch(this, function() {
                   newView.setData(this.currentData);
                   newView.currentData.previousItemCount = 0;
-                  newView.renderView(false);
-                  this.showView(newView);
+                  
+                  // As part of the performance improvements (see AKU-1142) there is a switch
+                  // to using native Promises in view rendering. The AlfListView renderView 
+                  // function has been adapted to return a promise but for backwards compatibility
+                  // we need to retain the previous code path (which should be followed when 
+                  // rendering a view does not return a promise)...
+                  var renderedView = newView.renderView(false);
+                  if (renderedView && typeof renderedView.then === "function")
+                  {
+                     renderedView.then(lang.hitch(this, this.showView, newView));
+                  }
+                  else
+                  {
+                     this.showView(newView);
+                  }
+                  
                }), delay);
             }
             else
@@ -1062,6 +1252,7 @@ define(["dojo/_base/declare",
          }
          else
          {
+            domClass.add(this.dataFailureNode, "share-hidden");
             domClass.remove(this.dataLoadingMoreNode, "share-hidden");
          }
       },
@@ -1100,8 +1291,11 @@ define(["dojo/_base/declare",
       /**
        * @instance
        * @param {object} view The view to show
+       * @param {object[]} renderedItems The items rendered (this should be returned)
+       * @return {Promise|object[]} The promise of the items rendered in the view
+       * @fires module:alfresco/core/topics#VIEW_RENDERING_COMPLETE
        */
-      showView: function alfresco_lists_AlfList__showView(view) {
+      showView: function alfresco_lists_AlfList__showView(view, renderedItems) {
          this.hideChildren(this.domNode);
          if (this.viewsNode.children.length > 0)
          {
@@ -1114,6 +1308,23 @@ define(["dojo/_base/declare",
 
          // Tell the view that it's now on display...
          view.onViewShown();
+
+         // Attempt to focus a specific item if requested...
+         if (this._focusItemKey)
+         {
+            view.focusOnItem(this._focusItemKey);
+         }
+
+         // After a view has been rendered publish the selected items to ensure
+         // that selection consistency has been maintained. This approach also ensures
+         // that where views re-render themselves (e.g. resizing a gallery view)
+         // that selection will be maintained even if the underlying renderer is destroyed
+         // and recreated...
+         this.publishSelectedItems();
+
+         // Wait for rendering to complete before publishing that it has completed...
+         window.requestAnimationFrame(lang.hitch(this, this.alfPublish, topics.VIEW_RENDERING_COMPLETE));
+         return renderedItems;
       },
 
       /**
@@ -1121,11 +1332,20 @@ define(["dojo/_base/declare",
        * [loadData]{@link module:alfresco/lists/AlfList#loadData}.
        *
        * @instance
+       * @param {object} [payload] The payload supplied when making the reload request.
+       * @param {string} [payload.focusItemKey] An item to focus on if it is in the data that is reloaded
        */
-      onReloadData: function alfresco_lists_AlfList__onReloadData() {
+      onReloadData: function alfresco_lists_AlfList__onReloadData(payload) {
          this.hideChildren(this.domNode);
          this.clearViews();
-         this.loadData();
+
+         // See AKU-1020 - Support the ability to load data with an item to focus on...
+         var parameters = {};
+         if (payload && payload.focusItemKey)
+         {
+            parameters.focusItemKey = payload.focusItemKey;
+         }
+         this.loadData(parameters);
       },
 
       /**
@@ -1136,8 +1356,11 @@ define(["dojo/_base/declare",
        * function will be called.
        *
        * @instance
+       * @param {object} [parameters] An optional parameters object providing information about the data to load
+       * @param {string} [parameters.focusItemKey] An item to focus on if it is in the data that is reloaded
+       * @fires module:alfresco/core/topics#STOP_XHR_REQUEST
        */
-      loadData: function alfresco_lists_AlfList__loadData() {
+      loadData: function alfresco_lists_AlfList__loadData(parameters) {
          if (!this.requestInProgress)
          {
             // Ensure any no data node is hidden...
@@ -1151,11 +1374,30 @@ define(["dojo/_base/declare",
             }
             else
             {
-               payload = {};
+               payload = {
+                  alfSuccessTopic: this.pubSubScope + this.loadDataSuccessTopic,
+                  alfFailureTopic: this.pubSubScope + this.loadDataFailureTopic
+               };
             }
 
-            payload.alfResponseTopic = this.pubSubScope + this.loadDataPublishTopic;
+            !payload.alfSuccessTopic && (payload.alfSuccessTopic = this.pubSubScope + this.loadDataSuccessTopic);
+            !payload.alfFailureTopic && (payload.alfFailureTopic = this.pubSubScope + this.loadDataFailureTopic);
 
+            // Generate and set a requestId. If the service supports passing this in the XHR request
+            // (which is not guaranteed) then this allows for the opportunity to cancel the request
+            // if a second request is made before the first completes...
+            this.currentRequestId = this.generateUuid();
+            payload.requestId = this.currentRequestId;
+            
+            if (!payload.alfResponseTopic)
+            {
+               payload.alfResponseTopic = this.pubSubScope + this.loadDataPublishTopic;
+            }
+            else
+            {
+               payload.alfResponseTopic = this.pubSubScope + payload.alfResponseTopic;
+            }
+            
             if (this.dataFilters)
             {
                payload.dataFilters = this.dataFilters;
@@ -1163,12 +1405,29 @@ define(["dojo/_base/declare",
 
             this.updateLoadDataPayload(payload);
             this.requestInProgress = true;
+
+            // Locally register an item key to find and focus on when the data is loaded (the 
+            // key may not match an item in the loaded data of course)...
+            if (parameters && parameters.focusItemKey)
+            {
+               this._focusItemKey = parameters.focusItemKey;
+            }
+            else
+            {
+               this._focusItemKey = null;
+            }
+            
             setTimeout(lang.hitch(this, this.alfPublish, this.loadDataPublishTopic, payload, true));
          }
          else
          {
-            // Let the user know that we're still waiting on the last data load?
-            this.alfLog("warn", "Waiting for previous data load request to complete", this);
+            this.pendingLoadRequest = true;
+            if (this.currentRequestId)
+            {
+                this.alfPublish(topics.STOP_XHR_REQUEST, {
+                   requestId: this.currentRequestId
+                }, true);
+            }
          }
       },
 
@@ -1198,6 +1457,7 @@ define(["dojo/_base/declare",
          if (this.pendingLoadRequest === true)
          {
             this.alfLog("log", "Found pending request, loading data...");
+            this.requestInProgress = false;
             this.pendingLoadRequest = false;
             this.loadData();
          }
@@ -1270,8 +1530,15 @@ define(["dojo/_base/declare",
             {
                view.augmentData(this.currentData);
                this.currentData = view.getData();
-               view.renderView(this.useInfiniteScroll);
-               this.showView(view);
+               var renderedView = view.renderView(this.useInfiniteScroll);
+               if (renderedView && typeof renderedView.then === "function")
+               {
+                  renderedView.then(lang.hitch(this, this.showView, view));
+               }
+               else
+               {
+                  this.showView(view);
+               }
             }
             else
             {
@@ -1336,10 +1603,16 @@ define(["dojo/_base/declare",
        * @param {object} response The response object
        * @param {object} originalRequestConfig The configuration that was passed to the [serviceXhr]{@link module:alfresco/core/CoreXhr#serviceXhr} function
        */
-      onDataLoadFailure: function alfresco_lists_AlfList__onDataLoadSuccess(response, originalRequestConfig) {
+      onDataLoadFailure: function alfresco_lists_AlfList__onDataLoadFailure(response, originalRequestConfig) {
          this.alfLog("error", "Data Load Failed", response, originalRequestConfig);
          this.currentData = null;
-         this.showDataLoadFailure();
+
+         // Only show a failure if there is not another request pending...
+         if (!this.pendingLoadRequest)
+         {
+            this.showDataLoadFailure();
+         }
+         
          this.alfPublish(this.documentLoadFailedTopic, {});
          this.alfPublish(this.requestFinishedTopic, {});
       },
@@ -1372,6 +1645,11 @@ define(["dojo/_base/declare",
        */
       onRequestFinished: function alfresco_lists_AlfList__onRequestFinished() {
          this.requestInProgress = false;
+         if (this.pendingLoadRequest)
+         {
+            this.pendingLoadRequest = false;
+            this.loadData();
+         }
       },
 
       /**

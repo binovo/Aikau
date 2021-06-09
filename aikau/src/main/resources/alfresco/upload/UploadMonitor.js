@@ -106,6 +106,16 @@ define(["alfresco/core/FileSizeMixin",
       maxUploadNameLength: 50,
 
       /**
+       * The characters which should swap when the text is reversed.
+       *
+       * @instance
+       * @type {String[]}
+       * @default ["[]", "{}", "<>", "()"]
+       * @since 1.0.79
+       */
+      reverseChars: ["[]", "{}", "<>", "()"],
+
+      /**
        * If set to true, this will override the [maxUploadNameLength property]{@see module:alfresco/upload/UploadMonitor#maxUploadNameLength}
        * and any long filenames will instead be truncated instead by the available space, with an ellipsis used at the end of the string to
        * denote any missing characters.
@@ -115,7 +125,7 @@ define(["alfresco/core/FileSizeMixin",
        * @default
        * @since 1.0.66
        */
-      useEllipsisForLongFilenames: false,
+      useEllipsisForLongFilenames: true,
 
       /**
        * <p>This collection of [PublishAction]{@link module:alfresco/renderers/PublishAction} widgets
@@ -209,6 +219,7 @@ define(["alfresco/core/FileSizeMixin",
        */
       constructor: function alfesco_upload_UploadMonitor__constructor() {
          this._uploads = {};
+         this.setupReverseChars();
       },
 
       /**
@@ -386,10 +397,10 @@ define(["alfresco/core/FileSizeMixin",
        *
        * @instance
        * @param {object} file The upload file
-       * @param {boolean} [doNotTruncate=false] If true then will prevent truncating the display text
+       * @param {boolean} [doNotModify=false] If true then will prevent any post-modification of the display text
        * @returns {string} The name of the upload to be deisplayed
        */
-      getDisplayText: function alfesco_upload_UploadMonitor__getDisplayText(file, doNotTruncate) {
+      getDisplayText: function alfesco_upload_UploadMonitor__getDisplayText(file, doNotModify) {
 
          // Create upload name as "filename.ext, xxx kB"
          var filename = file.name,
@@ -398,9 +409,11 @@ define(["alfresco/core/FileSizeMixin",
             uploadName = filename + separator + filesize;
 
          // If filename is too long, adjust
-         if (this.useEllipsisForLongFilenames) {
-            uploadName = uploadName.split("").reverse().join("");
-         } else if (!doNotTruncate && uploadName.length > this.maxUploadNameLength) {
+         if (doNotModify) {
+            // Leave it unchanged
+         } else if (this.useEllipsisForLongFilenames) {
+            uploadName = uploadName.split("").reverse().map(this.reverseDirectionalChars, this).join("");
+         } else if (uploadName.length > this.maxUploadNameLength) {
 
             // Calculate how long name can be
             var maxNameLength = this.maxUploadNameLength - filesize.length - separator.length;
@@ -554,6 +567,36 @@ define(["alfresco/core/FileSizeMixin",
          domConstruct.empty(this.inProgressItemsNode);
          domConstruct.empty(this.successfulItemsNode);
          domConstruct.empty(this.unsuccessfulItemsNode);
+      },
+
+      /**
+       * Reverse any directional characters (e.g. brackets)
+       *
+       * @instance
+       * @param {String} nextChar The next character to be checked
+       * @returns {String} The replaced or original character
+       * @since 1.0.79
+       */
+      reverseDirectionalChars: function alfresco_upload_AlfUploadDisplay__reverseDirectionalChars(nextChar) {
+         var code = nextChar.charCodeAt(0),
+            reverseCode = this.reverseChars[code];
+         return reverseCode ? String.fromCharCode(reverseCode) : nextChar;
+      },
+
+      /**
+       * Setup the reverse-chars code lookup array (one-time run)
+       *
+       * @instance
+       * @since 1.0.79
+       */
+      setupReverseChars: function alfresco_upload_AlfUploadDisplay__setupReverseChars() {
+         this.reverseChars = this.reverseChars.reduce(function(arr, nextChars) {
+            var fromCode = nextChars.charCodeAt(0),
+              toCode = nextChars.charCodeAt(1);
+            arr[fromCode] = toCode;
+            arr[toCode] = fromCode;
+            return arr;
+         }, []);
       },
 
       /**

@@ -26,6 +26,8 @@
  * @author Dave Draper
  */
 define(["dojo/_base/declare",
+        "alfresco/core/Core",
+        "alfresco/core/topics",
         "service/constants/Default",
         "webscripts/defaults",
         "dijit/registry",
@@ -38,9 +40,10 @@ define(["dojo/_base/declare",
         "dojo/json",
         "dojo/date/stamp",
         "dojo/cookie"],
-        function(declare, AlfConstants, webScriptDefaults, registry, pubSub, array, lang, domConstruct, uuid, xhr, JSON, stamp, dojoCookie) {
+        function(declare, Core, topics, AlfConstants, webScriptDefaults, registry, pubSub, array, 
+                 lang, domConstruct, uuid, xhr, JSON, stamp, dojoCookie) {
 
-   return declare(null, {
+   return declare([Core], {
 
       /**
        * Indicates whether or not to call the JavaScript encodeURI function on URLs before they
@@ -67,11 +70,14 @@ define(["dojo/_base/declare",
        *
        * @instance
        * @param {object} args The constructor arguments.
+       * @listens module:alfresco/core/topics#STOP_XHR_REQUEST
        */
       constructor: function(args){
          lang.mixin(this, args);
          this.csrfProperties = AlfConstants.CSRF_POLICY.properties || {};
          this.serviceRequests = {};
+
+         this.alfSubscribe(topics.STOP_XHR_REQUEST, lang.hitch(this, this.onStopRequest));
       },
 
       /**
@@ -335,6 +341,12 @@ define(["dojo/_base/declare",
                response: response
             }, false, false, requestConfig.data.alfResponseScope);
          }
+         else if (requestConfig.alfSuccessTopic) {
+            this.alfPublish(requestConfig.alfSuccessTopic, {
+               requestConfig: requestConfig,
+               response: response
+            }, false, false, requestConfig.alfResponseScope);
+         }
          else
          {
             this.alfLog("warn", "[DEFAULT CALLBACK] Default success callback has been called but no requestConfig.alfTopic has been set.");
@@ -363,6 +375,13 @@ define(["dojo/_base/declare",
                response: response
             }, false, false, requestConfig.data.alfResponseScope);
          }
+         else if (requestConfig.alfFailureTopic) {
+            this.alfPublish(requestConfig.alfFailureTopic, {
+               requestConfig: requestConfig,
+               response: response
+            }, false, false, requestConfig.alfResponseScope);
+         }
+         
          if (typeof this.displayMessage === "function" && response.response.text)
          {
             try

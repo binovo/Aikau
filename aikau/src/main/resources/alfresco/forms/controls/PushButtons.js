@@ -21,23 +21,63 @@
  * <p>An input control that offers the functionality of radio-buttons or checkboxes,
  * rendered as a single control with push-button options.</p>
  *
- * <p>For full information about how to use this control and all of the available
- * options, please see the implementing widget:
- * [alfresco/forms/controls/PushButtonsControl]{@link module:alfresco/forms/controls/PushButtonsControl}.</p>
+ * @example <caption>Sample configuration (uses noWrap and percentGap overrides):</caption>
+ * {
+ *    name: "alfresco/forms/controls/PushButtons",
+ *    id: "CAN_BUILD",
+ *    config: {
+ *       name: "canbuild",
+ *       label: "Can we build it?",
+ *       noWrap: true,
+ *       percentGap: 5,
+ *       optionsConfig: {
+ *          fixed: [
+ *             {
+ *                label: "Yes we can",
+ *                value: true
+ *             },
+ *             {
+ *                label: "No we can't",
+ *                value: false
+ *             }
+ *          ]
+ *       }
+ *    }
+ * }
+ * 
+ * @example <caption>Sample configuration (uses custom theme, ficed-width, multi-value mode properties):</caption>
+ * {
+ *    name: "alfresco/forms/controls/PushButtons",
+ *    id: "PROPER_FOOTBALL",
+ *    config: {
+ *       additionalCssClasses: "grey-gradient",
+ *       name: "properfootball",
+ *       label: "Only proper form of football?",
+ *       width: 400,
+ *       multiMode: true,
+ *       optionsConfig: {
+ *          publishTopic: "GET_FOOTBALL_OPTIONS",
+ *          publishGlobal: true
+ *       }
+ *    }
+ * }
  * 
  * @module alfresco/forms/controls/PushButtons
- * @extends alfresco/forms/controls/BaseFormControl
- * @mixes alfresco/core/CoreWidgetProcessing
+ * @extends module:alfresco/forms/controls/BaseFormControl
+ * @mixes module:alfresco/core/CoreWidgetProcessing
  * @author Martin Doyle
  * @since 1.0.44
  */
 define(["alfresco/core/CoreWidgetProcessing",
         "alfresco/forms/controls/BaseFormControl",
         "dojo/_base/declare",
+        "dojo/_base/array",
         "dojo/_base/lang",
+        "dojo/dom-attr",
         "dojo/dom-class",
+        "dojo/dom-construct",
         "alfresco/forms/controls/PushButtonsControl"],
-       function(CoreWidgetProcessing, BaseFormControl, declare, lang, domClass) {
+       function(CoreWidgetProcessing, BaseFormControl, declare, array, lang, domAttr, domClass, domConstruct) {
 
    return declare([BaseFormControl, CoreWidgetProcessing], {
 
@@ -52,6 +92,38 @@ define(["alfresco/core/CoreWidgetProcessing",
        * @since 1.0.65
        */
       firstValueIsDefault: false,
+
+      /**
+       * An optional message to display when there are no buttons available for display.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.80
+       */
+      noButtonsLabel: null,
+
+      /**
+       * Extends the [inherited function]{@link module:alfresco/forms/controls/BaseFormControl#alfDisabled}
+       * to ensure that the [control]{@link module:alfresco/forms/controls/PushButtonControl} is disabled.
+       * 
+       * @instance
+       * @param  {boolean} status Whether or not the control should be disabled
+       * @since 1.0.80
+       */
+      alfDisabled: function alfresco_forms_controls_BaseFormControl__alfDisabled(status) {
+         this.inherited(arguments);
+
+         if (this.wrappedWidget && this.wrappedWidget.opts)
+         {
+            array.forEach(this.wrappedWidget.opts, function(option) {
+               if (option.inputNode)
+               {
+                  status ? domAttr.set(option.inputNode, "disabled", true) : domAttr.remove(option.inputNode, "disabled");
+               }
+            }, this);
+         }
+      },
 
       /**
        * Run after widget created.
@@ -80,7 +152,8 @@ define(["alfresco/core/CoreWidgetProcessing",
             id: this.id + "_CONTROL",
             multiMode: !!this.multiMode,
             name: this.name,
-            noWrap: !!this.noWrap
+            noWrap: !!this.noWrap,
+            simpleLayout: !!this.simpleLayout
          };
 
          // Set config only if available
@@ -119,6 +192,30 @@ define(["alfresco/core/CoreWidgetProcessing",
             name: "alfresco/forms/controls/PushButtonsControl",
             config: config
          });
+      },
+
+      /**
+       * Extends the [inherited function]{@link module:alfresco/forms/controls/BaseFormControl#setOptions}
+       * to make use of any configured [noButtonsLabel]{@link module:alfresco/forms/controls/PushButtons#noButtonsLabel}
+       * when an empty options array is provided.
+       * 
+       * @instance
+       * @param {object[]} options An array of the options to be added.
+       * @since 1.0.80
+       */
+      setOptions: function alfresco_forms_controls_BaseFormControl__setOptions(options) {
+         this.inherited(arguments);
+
+         if (options && 
+             options.length === 0 && 
+             this.noButtonsLabel && 
+             this.wrappedWidget)
+         {
+            var span = domConstruct.create("span", {
+               "class": "alfresco-forms-controls-PushButtons__noOptionsLabel"
+            }, this.wrappedWidget.domNode);
+            span.appendChild(document.createTextNode(this.message(this.noButtonsLabel)));
+         }
       }
    });
 });

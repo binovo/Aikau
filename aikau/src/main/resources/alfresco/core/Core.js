@@ -589,22 +589,29 @@ define(["dojo/_base/declare",
        * @param {function} callback The callback function to call when the topic is published on.
        * @param {boolean} [global] Indicates that the pub/sub scope should not be applied
        * @param {boolean} [parentScope] Indicates that the pub/sub scope inherited from the parent should be applied
+       * @param {String} [customScope] A custom scope to use for this publish (will only be used if both global and parentScope are falsy)
        * @returns {object} A handle to the subscription
        */
-      alfSubscribe: function alfresco_core_Core__alfSubscribe(topic, callback, global, parentScope) {
-         var scopedTopic = topic;
-         if (global === true)
+      alfSubscribe: function alfresco_core_Core__alfSubscribe(topic, callback, global, parentScope, customScope) {
+         var publishScope = "";
+         var scopedTopic;
+         if (global === true) 
          {
-            // No action required - use global scope
-         }
-         else if (parentScope === true)
+            // No action required
+         } 
+         else if (parentScope === true) 
          {
-            scopedTopic = this.parentPubSubScope + topic;
-         }
-         else
+            publishScope = this.parentPubSubScope;
+         } 
+         else if (typeof customScope !== "undefined") 
          {
-            scopedTopic = this.pubSubScope + topic;
+            publishScope = customScope;
+         } 
+         else 
+         {
+            publishScope = this.pubSubScope;
          }
+         scopedTopic = publishScope + topic;
 
          if (AlfConstants.DEBUG)
          {
@@ -640,10 +647,11 @@ define(["dojo/_base/declare",
        * @param {function} [failure] The function to run if unsuccessful
        * @param {boolean} [global] Indicates that the pub/sub scope should not be applied
        * @param {boolean} [parentScope] Indicates that the pub/sub scope inherited from the parent should be applied
+       * @param {string} [customScope] A custom pub/sub scope that should be applied
        * @returns {object} A handle to the subscription
        * @since 1.0.44
        */
-      alfConditionalSubscribe: function alfresco_core_CoreWidgetProcessing__alfConditionalSubscribe(topic, rules, success, failure, global, parentScope) {
+      alfConditionalSubscribe: function alfresco_core_CoreWidgetProcessing__alfConditionalSubscribe(topic, rules, success, failure, global, parentScope, customScope) {
          return this.alfSubscribe(topic, lang.hitch(this, function(payload) {
             var rulesObj = lang.mixin({
                   testObject: payload
@@ -651,7 +659,7 @@ define(["dojo/_base/declare",
                successHandler = success && lang.partial(success, payload),
                failureHandler = failure && lang.partial(failure, payload);
             objUtils.evaluateRules(rulesObj, successHandler, failureHandler);
-         }), global, parentScope);
+         }), global, parentScope, customScope);
       },
 
       /**
@@ -804,11 +812,14 @@ define(["dojo/_base/declare",
       alfLog: function alfresco_core_Core__alfLog(severity, message) {
          // arguments.callee is deprecated, but there's no alternative to it, so ignore errors.
          /*jshint unused:false, noarg:false*/
-         this.alfPublish(this.alfLoggingTopic, {
-            callerName: arguments.callee.caller.name,
-            severity: severity,
-            messageArgs: Array.prototype.slice.call(arguments, 1)
-         }, true);
+         if (AlfConstants.DEBUG)
+         {
+            this.alfPublish(this.alfLoggingTopic, {
+               callerName: arguments.callee.caller.name,
+               severity: severity,
+               messageArgs: Array.prototype.slice.call(arguments, 1)
+            }, true);
+         }
       },
 
       /**

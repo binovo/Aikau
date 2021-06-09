@@ -20,29 +20,26 @@
 /**
  *
  * @module alfresco/renderers/MoreInfo
- * @extends external:dijit/_WidgetBase
- * @mixes external:dojo/_TemplatedMixin
+ * @extends module:aikau/core/BaseWidget
  * @mixes external:dojo/_OnDijitClickMixin
  * @mixes module:alfresco/core/Core
  * @mixes module:alfresco/core/ObjectTypeUtils
  * @author Dave Draper
  */
 define(["dojo/_base/declare",
-        "dijit/_WidgetBase",
-        "dijit/_TemplatedMixin",
+        "aikau/core/BaseWidget",
         "dijit/_OnDijitClickMixin",
         "alfresco/renderers/_XhrActionsMixin",
         "alfresco/core/ObjectProcessingMixin",
         "alfresco/core/ObjectTypeUtils",
-        "dojo/text!./templates/MoreInfo.html",
-        "alfresco/core/Core",
         "alfresco/lists/views/layouts/Popup",
         "dojo/_base/lang",
         "dojo/dom-class",
         "dojo/_base/event"],
-        function(declare, _WidgetBase, _TemplatedMixin, _OnDijitClickMixin, _XhrActionsMixin, ObjectProcessingMixin, ObjectTypeUtils, template, AlfCore, Popup, lang, domClass, event) {
+        function(declare, BaseWidget, _OnDijitClickMixin, _XhrActionsMixin, ObjectProcessingMixin, 
+                 ObjectTypeUtils, Popup, lang, domClass, event) {
 
-   return declare([_WidgetBase, _TemplatedMixin, _OnDijitClickMixin, _XhrActionsMixin, ObjectProcessingMixin, AlfCore], {
+   return declare([BaseWidget, _OnDijitClickMixin, _XhrActionsMixin, ObjectProcessingMixin], {
 
       /**
        * An array of the CSS files to use with this widget.
@@ -61,13 +58,6 @@ define(["dojo/_base/declare",
        * @default [{i18nFile: "./i18n/MoreInfo.properties"}]
        */
       i18nRequirements: [{i18nFile: "./i18n/MoreInfo.properties"}],
-
-      /**
-       * The HTML template to use for the widget.
-       * @instance
-       * @type {string}
-       */
-      templateString: template,
 
       /**
        * This is the object that the property to be rendered will be retrieved from.
@@ -117,6 +107,28 @@ define(["dojo/_base/declare",
       altText: "moreinfo.altTextWithContext.label",
 
       /**
+       * The prefix string that indicates the start of text to highlight.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.93
+       */
+      highlightPrefix: "\u0000",
+
+      /**
+       * This is the property within the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#highlightProperty}
+       * that should be used to identify the content with in the 
+       * [renderedValue]{@link module:alfresco/renderers/Property#renderedValue} to highlight.
+       * 
+       * @instance
+       * @type {string}
+       * @default 
+       * @since 1.0.93
+       */
+      highlightPostfix: "\u0003",
+
+      /**
        * This is required for ensure that the alt text is meaningful. It is the value to include in the alt text
        * and title attributes that identifies the item to the user.
        *
@@ -125,6 +137,23 @@ define(["dojo/_base/declare",
        * @default
        */
       propertyToRender: "displayName",
+
+      /**
+       * Overrides [the inherited function]{@link module:aikau/core/BaseWidget#createWidgetDom}
+       * to construct the DOM for the widget using native browser capabilities.
+       *
+       * @instance
+       * @since 1.0.101
+       */
+      createWidgetDom: function alfresco_renderers_MoreInfo__createWidgetDom() {
+         this.domNode = document.createElement("span");
+         this.domNode.classList.add("alfresco-renderers-MoreInfo");
+         this.domNode.setAttribute("tabindex", "0");
+         this.domNode.setAttribute("alt", this.alfText);
+         this.domNode.setAttribute("title", this.title);
+         this.domNode.innerHTML = "&nbsp;";
+         this._attach(this.domNode, "ondijitclick", lang.hitch(this, this.onMoreInfo));
+      },
 
       /**
        * Gets the correct localized alt and title text.
@@ -145,6 +174,7 @@ define(["dojo/_base/declare",
             this.altText = this.message(this.altText, {
                0: (this.currentItem != null ? this.currentItem[this.propertyToRender] : "")
             });
+            this.altText = this.altText.replace(new RegExp(this.highlightPrefix, "g"), "").replace(new RegExp(this.highlightPostfix, "g"), "");
          }
          else
          {
@@ -209,7 +239,8 @@ define(["dojo/_base/declare",
          this.moreInfoDialog = new Popup({
             title: title,
             currentItem: this.currentItem,
-            widgetsContent: widgetsContent
+            widgetsContent: widgetsContent,
+            handleOverflow: false
          });
          this.moreInfoDialog.show();
       },

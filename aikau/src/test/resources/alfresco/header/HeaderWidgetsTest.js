@@ -31,6 +31,32 @@ define(["module",
       name: "Basic Header Widgets Tests",
       testPage: "/HeaderWidgets",
 
+      "Normal click goes to new target": function() {
+         return this.remote.findByCssSelector("#MENUBARITEM .alfresco-navigation-_HtmlAnchorMixin")
+            .click()
+         .end()
+            
+         .getLastPublish("ALF_NAVIGATE_TO_PAGE")
+            .then(function(payload) {
+               assert.propertyVal(payload, "target", "CURRENT");
+            })
+            .clearLog();
+      },
+
+      "Control click goes to new target": function() {
+         return this.remote.findByCssSelector("#MENUBARITEM .alfresco-navigation-_HtmlAnchorMixin")
+            .pressKeys(keys.CONTROL)
+            .click()
+            .pressKeys(keys.NULL)
+         .end()
+            
+         .getLastPublish("ALF_NAVIGATE_TO_PAGE")
+            .then(function(payload) {
+               assert.propertyVal(payload, "target", "NEW");
+            })
+            .clearLog();
+      },
+
       // See AKU-788...
       "Down arrow is visible on long menu bar pop-up": function() {
          return this.remote.findDisplayedByCssSelector("#HEADER_POPUP .alfresco-menus-AlfMenuBarPopup__arrow");
@@ -82,7 +108,7 @@ define(["module",
          return this.remote.findByCssSelector("#PRESET_STATUS > div.lastUpdate > span")
             .getVisibleText()
             .then(function(resultText) {
-               assert.equal(resultText, "over 16 years ago", "Preset status time not displayed as expected");
+               assert.equal(resultText, "over 17 years ago", "Preset status time not displayed as expected");
             });
       },
 
@@ -168,7 +194,7 @@ define(["module",
          return this.remote.findByCssSelector("#NO_STATUS > div.lastUpdate > span")
             .getVisibleText()
             .then(function(resultText) {
-               assert.equal(resultText, "over 16 years ago", "Status time not updated");
+               assert.equal(resultText, "over 17 years ago", "Status time not updated");
             })
             .end();
 
@@ -376,7 +402,21 @@ define(["module",
       "Test document title": function() {
          return this.remote.execute("return document.title;")
             .then(function(title) {
-               assert(title.indexOf("Unit Tests" === 0), "The document title was not updated");
+               assert.include(title, "Updated Title", "The document title was not updated");
+               assert.include(title, "New prefix", "The document title prefix was not updated");
+            });
+      }
+   });
+
+   defineSuite(module, {
+      name: "Set Title Tests (Hide Prefix)",
+      testPage: "/SetTitle?hidePrefix=true",
+
+      "Prefix is hidden": function() {
+         return this.remote.execute("return document.title;")
+            .then(function(title) {
+               assert.include(title, "Updated Title", "The document title was not updated");
+               assert.notInclude(title, "New prefix", "The document title prefix was not hidden");
             });
       }
    });

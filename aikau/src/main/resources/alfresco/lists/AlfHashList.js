@@ -206,11 +206,20 @@ define(["dojo/_base/declare",
             }
             else 
             {
-               if (this.useLocalStorageHashFallback === true && 
-                   ("localStorage" in window && window.localStorage !== null))
+               try 
                {
-                  // Store the initial hash...
-                  localStorage.setItem(this.useLocalStorageHashFallbackKey, hashString);
+                  if (this.useLocalStorageHashFallback === true && 
+                      ("localStorage" in window && window.localStorage !== null))
+                  {
+                     // Store the initial hash...
+                     localStorage.setItem(this.useLocalStorageHashFallbackKey, hashString);
+                  }
+               }
+               catch(e)
+               {
+                  // No action when error occurs. The only reason that we're wrapping the local storage
+                  // utilization in a try/catch block is to prevent failures when Firefox is used with
+                  // SSO with cookies disabled. See MNT-16167 for details.
                }
 
                var currHash = ioQuery.queryToObject(hashString);
@@ -285,10 +294,19 @@ define(["dojo/_base/declare",
        */
       updateLocallyStoredHash: function alfresco_lists_AlfHashList__updateLocallyStoredHash(/*jshint unused:false*/payload) {
          // Save the hash to local storage if required...
-         if(this.useLocalStorageHashFallback === true && 
-            ("localStorage" in window && window.localStorage !== null))
+         try
          {
-            localStorage.setItem(this.useLocalStorageHashFallbackKey, hashUtils.getHashString());
+            if(this.useLocalStorageHashFallback === true && 
+               ("localStorage" in window && window.localStorage !== null))
+            {
+               localStorage.setItem(this.useLocalStorageHashFallbackKey, hashUtils.getHashString());
+            }
+         }
+         catch(e)
+         {
+            // No action when error occurs. The only reason that we're wrapping the local storage
+            // utilization in a try/catch block is to prevent failures when Firefox is used with
+            // SSO with cookies disabled. See MNT-16167 for details.
          }
       },
 
@@ -335,22 +353,26 @@ define(["dojo/_base/declare",
       },
 
       /**
-       * Extends the [inherited function]{@link module:alfresco/lists/AlfList#onDataLoadSuccess} to check
+       * Extends the [inherited function]{@link module:alfresco/lists/AlfList#showView} to check
        * whether or not a URL hash parameter is set to indicate a particular item to bring into view.
        * This URL hash parameter checked is the "currentItem" and if this is found it will publish the
        * value on the "ALF_BRING_ITEM_INTO_VIEW" topic.
-       * 
+       *
+       * @instance
        * @param  {object} payload The payload containing the loaded data.
        * @fires module:alfresco/lists/views/ListRenderer~event:ALF_BRING_ITEM_INTO_VIEW
+       * @since 1.0.101
        */
-      onDataLoadSuccess: function alfresco_lists_AlfHashList__onDataLoadSuccess(/*jshint unused:false*/ payload) {
+      showView: function alfresco_lists_AlfHashList__showView(/*jshint unused:false*/ view) {
          this.inherited(arguments);
          var currHash = hashUtils.getHash();
          if (currHash.currentItem)
          {
-            this.alfPublish("ALF_BRING_ITEM_INTO_VIEW", {
-               item: currHash.currentItem
-            });
+            window.requestAnimationFrame(lang.hitch(this, function() {
+               this.alfPublish("ALF_BRING_ITEM_INTO_VIEW", {
+                  item: currHash.currentItem
+               });
+            }));
          }
       },
 
@@ -362,27 +384,33 @@ define(["dojo/_base/declare",
       onFiltersUpdated: function alfresco_lists_AlfHashList__onFiltersUpdated() {
          // Reset the filtersRemoved count
          this.___filtersRemoved = 0;
-         if (this.useHash) {
-            var filterValues = {};
-            array.forEach(this.dataFilters, function(dataFilter) {
-               var filterValue = dataFilter.value;
-               if(filterValue !== null && typeof filterValue !== "undefined") 
+
+         var filterValues = {};
+         this.dataFilters = array.filter(this.dataFilters, function(dataFilter) {
+            var filterValue = dataFilter.value;
+            if(filterValue !== null && typeof filterValue !== "undefined") 
+            {
+               if(typeof filterValue === "string") 
                {
-                  if(typeof filterValue === "string") 
+                  filterValue = lang.trim(filterValue);
+                  if(!filterValue.length) 
                   {
-                     filterValue = lang.trim(filterValue);
-                     if(!filterValue.length) 
-                     {
-                        // Remove empty strings from hash and update the count of filters removed
-                        filterValue = null; 
-                        this.___filtersRemoved++;
-                     }
+                     // Remove empty strings from hash and update the count of filters removed
+                     filterValue = null; 
+                     this.___filtersRemoved++;
                   }
                }
-               filterValues[dataFilter.name] = filterValue;
-            }, this);
+            }
+            filterValues[dataFilter.name] = filterValue;
+            return !!filterValue;
+         }, this);
+
+         if (this.useHash)
+         {
             hashUtils.updateHash(filterValues);
-         } else {
+         }
+         else 
+         {
             this.clearViews();
             this.loadData();
          }

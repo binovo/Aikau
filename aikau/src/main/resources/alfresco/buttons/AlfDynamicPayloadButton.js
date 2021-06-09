@@ -144,7 +144,11 @@ define(["dojo/_base/declare",
       setupPayloadSubscriptions: function alfresco_buttons_AlfDynamicPayloadButton__setupPayloadSubscriptions(pps) {
          if (pps.topic)
          {
-            this.alfSubscribe(pps.topic, lang.hitch(this, this.onPayloadUpdate, pps.dataMapping));
+            this.alfSubscribe(pps.topic, 
+                              lang.hitch(this, this.onPayloadUpdate, pps.dataMapping), 
+                              pps.subscribeGlobal,
+                              pps.subscribeParent,
+                              pps.subscribeScope);
          }
          else
          {
@@ -192,9 +196,9 @@ define(["dojo/_base/declare",
             if (dataMapping.hasOwnProperty(key))
             {
                // Check that the data actually exists...
-               var value = lang.getObject(key, false, data);
-               if (value)
+               if (lang.exists(key, data))
                {
+                  var value = lang.getObject(key, false, data);
                   // ...and then set it as requested
                   lang.setObject(dataMapping[key], value, this.publishPayload);
                }

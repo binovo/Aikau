@@ -18,13 +18,44 @@
  */
 
 /**
- * This extends the [base form control module]{@link module:alfresco/forms/controls/BaseFormControl} to provide
- * a ComboBox form control. This controls currently only supports dynamic rather than fixed options which are
+ * <p>This extends the [base form control module]{@link module:alfresco/forms/controls/BaseFormControl} to provide
+ * a FilteringSelect form control. This controls currently only supports dynamic rather than fixed options which are
  * retrieved and filtered by a dedicated [ServiceStore]{@link module:alfresco/forms/controls/utilities/ServiceStore}
- * instance.
+ * instance.</p>
+ *
+ * <p><strong>PLEASE NOTE: </strong>Because this form control uses the a
+ * [ServiceStore]{@link module:alfresco/forms/controls/utilities/ServiceStore} please take care to configure the
+ * "queryAttribute", "labelAttribute", "valueAttribute" and "resultsProperty" attributes.</p>
+ *
+ * @example <caption>Example configuration</caption>
+ * {
+ *    id: "FILTERING_SELECT",
+ *    name: "alfresco/forms/controls/FilteringSelect",
+ *    config: {
+ *       fieldId: "FILTERING_SELECT_1",
+ *       name: "person",
+ *       label: "Select a person",
+ *       description: "The people options are provided by the OptionsService, but can be filtered via the ServiceStore",
+ *       optionsConfig: {
+ *          queryAttribute: "label",
+ *          labelAttribute: "label",
+ *          valueAttribute: "value",
+ *          publishTopic: "ALF_GET_FORM_CONTROL_OPTIONS",
+ *          publishPayload: {
+ *             resultsProperty: "options",
+ *             url: url.context + "/proxy/alfresco/api/people",
+ *             itemsAttribute: "people",
+ *             labelAttribute: "userName",
+ *             valueAttribute: "userName"
+ *          }
+ *       }
+ *    }
+ * }
  *
  * @module alfresco/forms/controls/FilteringSelect
  * @extends module:alfresco/forms/controls/BaseFormControl
+ * @mixes module:alfresco/forms/controls/utilities/UseServiceStoreMixin
+ * @mixes module:alfresco/forms/controls/utilities/IconMixin
  * @author Dave Draper
  */
 define(["alfresco/forms/controls/BaseFormControl",
@@ -49,6 +80,18 @@ define(["alfresco/forms/controls/BaseFormControl",
                         {cssFile:"./css/ComboBox.css"}],
 
       /**
+       * Indicates whether opening the drop-down menu should show all available options
+       * or just those that match the current value of the control. Defaults to true
+       * (meaning that only filtered results are displayed).
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.96
+       */
+      showAllOptionsOnOpen: false,
+
+      /**
        * @instance
        */
       getWidgetConfig: function alfresco_forms_controls_FilteringSelect__getWidgetConfig() {
@@ -71,14 +114,13 @@ define(["alfresco/forms/controls/BaseFormControl",
          var filteringSelect = new FilteringSelect({
             id: this.id + "_CONTROL",
             name: this.name,
-            value: this.value,
             store: serviceStore,
             searchAttr: serviceStore.queryAttribute,
             labelAttribute: serviceStore.labelAttribute,
             queryExpr: "${0}"
          });
          this.addIcon(filteringSelect);
-         this.showOptionsBasedOnValue(filteringSelect);
+         !this.showAllOptionsOnOpen && this.showOptionsBasedOnValue(filteringSelect);
 
          // It's necessary to override the standard Dojo validation message handling here.
          filteringSelect.displayMessage = lang.hitch(this, this.onFilteringValidation);

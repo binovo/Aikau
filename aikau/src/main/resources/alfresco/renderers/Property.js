@@ -24,21 +24,18 @@
  * of different configuration options that control how the property is ultimately displayed.
  *
  * @module alfresco/renderers/Property
- * @extends external:dijit/_WidgetBase
- * @mixes external:dojo/_TemplatedMixin
- * @mixes module:alfresco/core/Core
+ * @extends module:aikau/core/BaseWidget
  * @mixes module:alfresco/renderers/_JsNodeMixin
  * @mixes module:alfresco/renderers/_ItemLinkMixin
  * @mixes module:alfresco/core/ValueDisplayMapMixin
+ * @mixes module:alfresco/core/UrlUtilsMixin
+ * @mixes module:alfresco/core/TemporalUtils
  * @author Dave Draper
  */
 define(["dojo/_base/declare",
-        "dijit/_WidgetBase", 
-        "dijit/_TemplatedMixin", 
+        "aikau/core/BaseWidget",
         "alfresco/renderers/_JsNodeMixin", 
         "alfresco/core/ValueDisplayMapMixin", 
-        "alfresco/core/Core", 
-        "dojo/text!./templates/Property.html", 
         "alfresco/core/ObjectTypeUtils", 
         "alfresco/core/UrlUtilsMixin", 
         "alfresco/core/TemporalUtils", 
@@ -47,10 +44,10 @@ define(["dojo/_base/declare",
         "dojo/dom-style", 
         "dijit/Tooltip", 
         "dojo/on"], 
-        function(declare, _WidgetBase, _TemplatedMixin, _JsNodeMixin, ValueDisplayMapMixin, AlfCore, template, 
-            ObjectTypeUtils, UrlUtilsMixin, TemporalUtils, lang, domClass, domStyle, Tooltip, on) {
+        function(declare, BaseWidget, _JsNodeMixin, ValueDisplayMapMixin, ObjectTypeUtils, UrlUtilsMixin, 
+                 TemporalUtils, lang, domClass, domStyle, Tooltip, on) {
 
-   return declare([_WidgetBase, _TemplatedMixin, AlfCore, _JsNodeMixin, ValueDisplayMapMixin, TemporalUtils, UrlUtilsMixin], {
+   return declare([BaseWidget, _JsNodeMixin, ValueDisplayMapMixin, TemporalUtils, UrlUtilsMixin], {
 
       /**
        * An array of the i18n files to use with this widget.
@@ -75,13 +72,6 @@ define(["dojo/_base/declare",
       }],
 
       /**
-       * The HTML template to use for the widget.
-       * @instance
-       * @type {string}
-       */
-      templateString: template,
-
-      /**
        * This is the object that the property to be rendered will be retrieved from.
        *
        * @instance
@@ -99,6 +89,49 @@ define(["dojo/_base/declare",
        * @default
        */
       deemphasized: false,
+
+      /**
+       * This is the property within the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#highlightProperty}
+       * that should be used to identify the content with in the 
+       * [renderedValue]{@link module:alfresco/renderers/Property#renderedValue} to highlight.
+       * 
+       * @instance
+       * @type {string}
+       * @default 
+       * @since 1.0.87
+       */
+      highlightProperty: null,
+
+      /**
+       * The prefix string that indicates the start of text to highlight.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.92
+       */
+      highlightPrefix: null,
+
+      /**
+       * The postfix string that indicates the start of text to highlight.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.92
+       */
+      highlightPostfix: null,
+      
+      /**
+       * This is a specific value to highlight. It will be not be used if
+       * [highlightProperty]{@link module:alfresco/renderers/Property#highlightProperty} is configured.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.87
+       */
+      highlightValue: null,
 
       /**
        * The label for the property. Won't be shown if left as null.
@@ -202,6 +235,27 @@ define(["dojo/_base/declare",
       renderSize: "medium",
 
       /**
+       * A title attribute to apply to the property to set an HTML title attribute on the outer
+       * element of the widget. The value will be displayed in a tooltip when hovered over.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.102
+       */
+      title: null,
+
+      /**
+       * Indicates whether or not string values should be trimmed.
+       *
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.99
+       */
+      trimValue: false,
+
+      /**
        * Indicates whether or not a message should be displayed in place of the 
        * [propertyToRender]{@link module:alfresco/renderers/Property#propertyToRender} when it is not available.
        * This defaults to false but if configured to be true then the 
@@ -248,6 +302,42 @@ define(["dojo/_base/declare",
        * @type {string[]}
        */
       _tooltipPositions: ["below-centered", "above-centered"],
+
+      /**
+       * Overrides [the inherited function]{@link module:aikau/core/BaseWidget#createWidgetDom}
+       * to construct the DOM for the widget using native browser capabilities.
+       *
+       * @instance
+       * @since 1.0.100
+       */
+      createWidgetDom: function alfresco_renderers_Property__createWidgetDom() {
+         this.renderedValueNode = this.domNode = document.createElement("span");
+         this.renderedValueClassArray.forEach(function(className) {
+            this.domNode.classList.add(className);
+         }, this);
+         this.domNode.setAttribute("tabindex", "0");
+
+         this.innerSpan = document.createElement("span");
+         this.innerSpan.classList.add("inner");
+
+         var labelSpan = document.createElement("span");
+         labelSpan.classList.add("label");
+         labelSpan.textContent = this.label;
+
+         var valueSpan = document.createElement("span");
+         valueSpan.classList.add("value");
+         valueSpan.innerHTML = this.renderedValue;
+
+         this.innerSpan.appendChild(labelSpan);
+         this.innerSpan.appendChild(valueSpan);
+         this.domNode.appendChild(this.innerSpan);
+
+         // See AKU-1166
+         if (this.title)
+         {
+            this.domNode.setAttribute("title", this.title);
+         }
+      },
 
       /**
        * Updates CSS classes based on the current state of the renderer. Currently this only
@@ -351,12 +441,19 @@ define(["dojo/_base/declare",
             this.label = "";
          }
 
+         var highlight = this.highlightValue;
+         if (this.highlightProperty)
+         {
+            highlight = lang.getObject(this.highlightProperty, false, this.currentItem);
+         }
+
          if (ObjectTypeUtils.isString(this.propertyToRender) &&
              ObjectTypeUtils.isObject(this.currentItem) &&
              lang.exists(this.propertyToRender, this.currentItem)) 
          {
             this.renderPropertyNotFound = false;
-            this.originalRenderedValue = this.getRenderedProperty(lang.getObject(this.propertyToRender, false, this.currentItem));
+            this.originalRenderedValue = this.getRenderedProperty(lang.getObject(this.propertyToRender, false, this.currentItem),
+                                                                  highlight);
             this.renderedValue = this.mapValueToDisplayValue(this.originalRenderedValue);
          } 
          else 
@@ -376,12 +473,23 @@ define(["dojo/_base/declare",
        * @instance
        */
       updateRenderedValueClass: function alfresco_renderers_Property__updateRenderedValueClass() {
+         // Need to set both renderedValueClassArray (for widgets without a template) and
+         // renderedValueClass (for those that do)...
+         var renderedValueClass = this.renderedValueClass || "";
+         
+         // See AKU-1152 - handle spaces in arrays...
+         this.renderedValueClassArray = renderedValueClass.replace(/\s+/g, " ").trim().split(" ");
+         this.renderedValueClassArray = this.renderedValueClassArray.concat(["alfresco-renderers-Property", this.renderSize]);
          this.renderedValueClass = this.renderedValueClass + " " + this.renderSize;
-         if (this.renderOnNewLine === true) {
+         if (this.renderOnNewLine === true) 
+         {
             this.renderedValueClass = this.renderedValueClass + " block";
+            this.renderedValueClassArray.push("block");
          }
-         if (this.deemphasized === true) {
+         if (this.deemphasized === true) 
+         {
             this.renderedValueClass = this.renderedValueClass + " deemphasized";
+            this.renderedValueClassArray.push("deemphasize");
          }
       },
 
@@ -430,41 +538,91 @@ define(["dojo/_base/declare",
        *
        * @instance
        */
-      renderDate: function(date, format) {
+      renderDate: function alfresco_renderers_Property__renderDate(date, format) {
          return this.formatDate(this.fromISO8601(date), format);
+      },
+
+      /**
+       * Updates the supplied value to include HTML mark elements around all instances of the
+       * supplied highlight value.
+       * 
+       * @instance
+       * @param {string} value The value to update with highlight marks
+       * @param {string} highlight The text to highlight
+       * @return {string} The highlighted value
+       * @since 1.0.87
+       */
+      addHighlightMarks: function alfresco_renderers_Property__addHighlightMarks(value, highlight) {
+         var re = new RegExp(highlight, "gi");
+         return value.replace(re, "<mark>$&</mark>");
       },
 
       /**
        * @instance
        * @param {string} property The name of the property to render
        */
-      getRenderedProperty: function alfresco_renderers_Property__getRenderedProperty(property) {
+      getRenderedProperty: function alfresco_renderers_Property__getRenderedProperty(property, highlight) {
          /*jshint maxcomplexity:false*/
          var value = "";
-         if (property === null || typeof property === "undefined") {
+         if (property === null || typeof property === "undefined") 
+         {
             // No action required if a property isn't supplied
-         } else if (ObjectTypeUtils.isString(property)) {
+         } 
+         else if (ObjectTypeUtils.isString(property)) 
+         {
             value = this.encodeHTML(property);
-         } else if (ObjectTypeUtils.isArray(property)) {
+         } 
+         else if (ObjectTypeUtils.isArray(property)) 
+         {
             value = property.length;
-         } else if (ObjectTypeUtils.isBoolean(property)) {
+         } 
+         else if (ObjectTypeUtils.isBoolean(property)) 
+         {
             value = property;
-         } else if (ObjectTypeUtils.isNumber(property)) {
+         } 
+         else if (ObjectTypeUtils.isNumber(property)) 
+         {
             value = property;
-         } else if (ObjectTypeUtils.isObject(property)) {
+         } 
+         else if (ObjectTypeUtils.isObject(property)) 
+         {
             // TODO: This should probably be moved out into a Node specific sub-class
-            if (property.hasOwnProperty("iso8601")) {
+            if (property.hasOwnProperty("iso8601")) 
+            {
                value = this.renderDate(property.iso8601);
-            } else if (property.hasOwnProperty("userName") && property.hasOwnProperty("displayName")) {
+            } 
+            else if (property.hasOwnProperty("userName") && property.hasOwnProperty("displayName")) 
+            {
                value = this.userProfileLink(property.userName, property.displayName);
-            } else if (property.hasOwnProperty("displayName")) {
+            } 
+            else if (property.hasOwnProperty("displayName")) 
+            {
                value = this.encodeHTML(property.displayName || "");
-            } else if (property.hasOwnProperty("title")) {
+            } 
+            else if (property.hasOwnProperty("title")) 
+            {
                value = this.encodeHTML(property.title || "");
-            } else if (property.hasOwnProperty("name")) {
+            } 
+            else if (property.hasOwnProperty("name")) 
+            {
                value = this.encodeHTML(property.name || "");
             }
          }
+
+         if (value && highlight)
+         {
+            value = this.addHighlightMarks(value, highlight);
+         }
+         else if (value && this.highlightPrefix && this.highlightPostfix)
+         {
+            value = value.replace(new RegExp(this.highlightPrefix, "g"), "<mark>").replace(new RegExp(this.highlightPostfix, "g"), "</mark>");
+         }
+
+         if (value && this.trimValue && typeof value.trim === "function")
+         {
+            value = value.replace(/&nbsp;/g, " ").trim();
+         }
+
          return value;
       }
    });

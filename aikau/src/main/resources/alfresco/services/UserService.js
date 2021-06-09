@@ -18,6 +18,15 @@
  */
 
 /**
+ * <p>This service has been provided for working with users. Currently it provides the capability to
+ * list users (either in an [AlfList]{@link module:alfresco/lists/AlfList} or as options in a
+ * [form control]{@link module:alfresco/forms/controls/BaseFormControl} that supports options, such
+ * as a [Select control]{@link module:alfresco/forms/controls/Select}). It also provides the ability
+ * to set the preferred home page of a user as well as their current status.<p>
+ * <p>It is likely that this service does not yet provide all user related capabilities that may be
+ * required - if a capability is missing then please raise a feature request as an issue on
+ * the [GitHub project]{@link https://github.com/Alfresco/Aikau/issues}</p>
+ * 
  * @module alfresco/services/UserService
  * @extends module:alfresco/services/BaseService
  * @mixes module:alfresco/core/CoreXhr
@@ -33,13 +42,14 @@ define(["dojo/_base/declare",
         "alfresco/services/_UserServiceTopicMixin",
         "alfresco/services/_PreferenceServiceTopicMixin",
         "alfresco/core/topics",
+        "alfresco/util/urlUtils",
         "dojo/request/xhr",
         "dojo/json",
         "dojo/_base/lang",
         "dojo/_base/array",
         "service/constants/Default"],
         function(declare, BaseService, AlfXhr, NotificationUtils, 
-              _UserServiceTopicMixin, _PreferenceServiceTopicMixin, topics, xhr, JSON, lang, array, AlfConstants) {
+              _UserServiceTopicMixin, _PreferenceServiceTopicMixin, topics, urlUtils, xhr, JSON, lang, array, AlfConstants) {
    
    return declare([BaseService, AlfXhr, NotificationUtils, _UserServiceTopicMixin, _PreferenceServiceTopicMixin], {
       
@@ -67,6 +77,11 @@ define(["dojo/_base/declare",
        * @instance 
        * @since 1.0.32
        * @listens module:alfresco/core/topics#GET_USERS
+       * @listens module:alfresco/core/topics#GET_AUTHORITIES
+       * @listens module:alfresco/core/topics#GET_FOLLOWED_USERS
+       * @listens module:alfresco/core/topics#GET_FOLLOWING_USERS
+       * @listens module:alfresco/core/topics#FOLLOW_USERS
+       * @listens module:alfresco/core/topics#UNFOLLOW_USERS
        */
       registerSubscriptions: function alfresco_services_UserService__registerSubscriptions() {
          this.alfSubscribe(this.updateUserStatusTopic, lang.hitch(this, this.updateUserStatus));
@@ -74,6 +89,251 @@ define(["dojo/_base/declare",
          this.alfSubscribe(this.setUserHomePageSuccessTopic, lang.hitch(this, this.onSetUserHomePageSuccess));
          this.alfSubscribe(this.setUserHomePageFailureTopic, lang.hitch(this, this.onSetUserHomePageFailure));
          this.alfSubscribe(topics.GET_USERS, lang.hitch(this, this.onGetUsers));
+         this.alfSubscribe(topics.GET_AUTHORITIES, lang.hitch(this, this.onGetAuthorities));
+         this.alfSubscribe(topics.GET_FOLLOWED_USERS, lang.hitch(this, this.onGetFollowedUsers));
+         this.alfSubscribe(topics.GET_FOLLOWING_USERS, lang.hitch(this, this.onGetFollowingUsers));
+         this.alfSubscribe(topics.FOLLOW_USERS, lang.hitch(this, this.onFollowUsers));
+         this.alfSubscribe(topics.UNFOLLOW_USERS, lang.hitch(this, this.onUnfollowUsers));
+         this.alfSubscribe(topics.GET_USER, lang.hitch(this, this.onGetUser));
+      },
+
+      /**
+       * Handles requests to retrieve a single user.
+       * 
+       * @instance
+       * @param {object} payload The published payload with the userName of the user to retrieve
+       * @since 1.0.86
+       */
+      onGetUser: function alfresco_services_UserService__onGetUser(payload) {
+         if (payload.userName)
+         {
+            var url = AlfConstants.PROXY_URI + "api/people?filter=" + payload.userName;
+            var config = {
+               userName: payload.userName,
+               url: url,
+               method: "GET",
+               successCallback: this.onUserSuccess,
+               failureCallback: this.onUserFailure,
+               callbackScope: this
+            };
+            this.mergeTopicsIntoXhrPayload(payload, config);
+            this.serviceXhr(config);
+         }
+         else
+         {
+            this.alfLog("warn", "A request was made to retrieve the details for a user, but no 'userName' attribute was provided in the payload", payload, this);
+         }
+      },
+
+      /**
+       * Handles successful requests to get users filtered by the supplied user name. Makes an additional
+       * XHR request to determine whether or not the user is being followed by the current user.
+       * 
+       * @instance
+       * @param {object} response The response from the request
+       * @param {object} originalRequestConfig The configuration passed on the original request
+       * @since 1.0.86
+       */
+      onUserSuccess: function alfresco_services_UserService__onUserSuccess(response, originalRequestConfig) {
+         var items = lang.getObject("people", false, response);
+         if (items)
+         {
+            var targetUser;
+            array.some(items, function(item) {
+               if (item.userName === originalRequestConfig.userName)
+               {
+                  targetUser = item;
+                  if (item.firstName && item.lastName)
+                  {
+                     targetUser.displayName = item.firstName + " " + item.lastName;
+                  }
+                  else if (item.firstName)
+                  {
+                     targetUser.displayName = item.firstName;
+                  }
+                  else if (item.lastName)
+                  {
+                     targetUser.displayName = item.lastName;
+                  }
+                  else
+                  {
+                     targetUser.displayName = "";
+                  }
+
+                  var url = AlfConstants.PROXY_URI + "api/subscriptions/" + AlfConstants.USERNAME + "/follows";
+                  var config = {
+                     url: url,
+                     userData: targetUser,
+                     initialRequestConfig: originalRequestConfig,
+                     data: [targetUser.userName],
+                     method: "POST",
+                     successCallback: this.publishUser,
+                     failureCallback: this.onUserFailure,
+                     callbackScope: this
+                  };
+                  this.serviceXhr(config);
+               }
+               return targetUser;
+            }, this);
+         }
+      },
+
+      /**
+       * This is the success callback for the [onGetUser]{@link module:alfresco/services/UserService#onGetUser} function.
+       * 
+       * @instance
+       * @param {object} response The response from the request
+       * @param {object} originalRequestConfig The configuration passed on the original request
+       * @since 1.0.86
+       */
+      publishUser: function alfresco_services_UserService__publishUser(response, originalRequestConfig) {
+         var user = originalRequestConfig.userData;
+         user.following = (response && response.length && response[0][user.userName]) || false;
+
+         var topic = lang.getObject("initialRequestConfig.alfSuccessTopic", false, originalRequestConfig);
+         if (!topic)
+         {
+            topic = lang.getObject("initialRequestConfig.alfResponseTopic", false, originalRequestConfig);
+         }
+         if (topic)
+         {
+            this.alfPublish(topic, {
+               user: user
+            });
+         }
+      },
+
+      /**
+       * This is the failure callback for the [onGetUser]{@link module:alfresco/services/UserService#onGetUser} function.
+       * 
+       * @instance
+       * @param {object} response The response from the request
+       * @param {object} originalRequestConfig The configuration passed on the original request
+       * @since 1.0.86
+       */
+      onUserFailure: function alfresco_services_UserService__onUserFailure(response, originalRequestConfig) {
+         this.alfLog("error", "It was not possible to retrieve the user", response, originalRequestConfig, this);
+      },
+
+      /**
+       * Handles requests to follow users.
+       * 
+       * @instance
+       * @param {object} payload The details of the users to follow
+       * @since 1.0.86
+       */
+      onFollowUsers: function alfresco_services_UserService__onFollowUsers(payload) {
+         if (payload.userNames)
+         {
+            var url = AlfConstants.PROXY_URI + "api/subscriptions/" + AlfConstants.USERNAME + "/follow";
+            var config = {
+               url: url,
+               data: payload.userNames,
+               method: "POST"
+            };
+            this.mergeTopicsIntoXhrPayload(payload, config);
+            this.serviceXhr(config);
+         }
+         else
+         {
+            this.alfLog("warn", "A request was made to follow users, but no 'userName' attribute was provided in the payload", payload, this);
+         }
+      },
+
+      /**
+       * Handles requests to unfollow users.
+       * 
+       * @instance
+       * @param {object} payload The details of the users to follow
+       * @since 1.0.86
+       */
+      onUnfollowUsers: function alfresco_services_UserService__onUnfollowUsers(payload) {
+         if (payload.userNames)
+         {
+            var url = AlfConstants.PROXY_URI + "api/subscriptions/" + AlfConstants.USERNAME + "/unfollow";
+            var config = {
+               url: url,
+               data: payload.userNames,
+               method: "POST"
+            };
+            this.mergeTopicsIntoXhrPayload(payload, config);
+            this.serviceXhr(config);
+         }
+         else
+         {
+            this.alfLog("warn", "A request was made to unfollow users, but no 'userName' attribute was provided in the payload", payload, this);
+         }
+      },
+
+      /**
+       * Handles requests to retrieve authorities (users or groups).
+       * 
+       * @instance
+       * @param {object} payload The request details
+       * @since 1.0.77
+       */
+      onGetAuthorities: function alfresco_services_UserService__onGetAuthorities(payload) {
+         var topic;
+         if (payload.alfResponseTopic)
+         {
+            topic = (payload.alfResponseScope || "") + payload.alfResponseTopic;
+         }
+         else
+         {
+            topic = payload.responseTopic;
+         }
+
+         var url = AlfConstants.PROXY_URI + "api/forms/picker/authority/children";
+         
+         var searchTerm = payload.query || "";
+         url = urlUtils.addQueryParameter(url, "searchTerm", searchTerm);
+
+         var selectableType = payload.selectableType || "cm:person";
+         url = urlUtils.addQueryParameter(url, "selectableType", selectableType);
+
+         var size = payload.size || 1000;
+         url = urlUtils.addQueryParameter(url, "size", size);
+         
+         this.serviceXhr({
+            url: url,
+            method: "GET",
+            alfTopic: topic,
+            alfResponseTopic: topic,
+            alfSuccessTopic: payload.alfSuccessTopic,
+            alfFailureTopic: payload.alfFailureTopic
+         });
+      },
+
+      /**
+       * 
+       * @instance
+       * @param  {object} payload Additional details for the request.
+       * @since 1.0.86
+       */
+      onGetFollowedUsers: function alfresco_services_UserService__onGetFollowedUsers(payload) {
+         var url = AlfConstants.PROXY_URI + "api/subscriptions/" + AlfConstants.USERNAME + "/following";
+         var config = {
+            url: url,
+            method: "GET"
+         };
+         this.mergeTopicsIntoXhrPayload(payload, config);
+         this.serviceXhr(config);
+      },
+
+      /**
+       * 
+       * @instance
+       * @param  {object} payload Additional details for the request.
+       * @since 1.0.86
+       */
+      onGetFollowingUsers: function alfresco_services_UserService__onGetFollowingUsers(payload) {
+         var url = AlfConstants.PROXY_URI + "api/subscriptions/" + AlfConstants.USERNAME + "/followers";
+         var config = {
+            url: url,
+            method: "GET"
+         };
+         this.mergeTopicsIntoXhrPayload(payload, config);
+         this.serviceXhr(config);
       },
 
       /**
@@ -93,11 +353,40 @@ define(["dojo/_base/declare",
          {
             topic = payload.responseTopic;
          }
+
+         var url = AlfConstants.PROXY_URI + "api/people";
+         if (payload.dataFilters)
+         {
+            url = urlUtils.addFilterQueryParameters(url, payload);
+         }
+         else if (payload.filter)
+         {
+            url = urlUtils.addQueryParameter(url, "filter", payload.filter);
+         }
+
+         if (payload.sortField)
+         {
+            url = urlUtils.addQueryParameter(url, "sortBy", payload.sortField);
+         }
+
+         url = urlUtils.addQueryParameter(url, "dir", (payload.sortAscending !== false) ? "asc" : "desc");
+         
+         if (payload.pageSize)
+         {
+            url = urlUtils.addQueryParameter(url, "pageSize", payload.pageSize);
+         }
+         if (payload.page && payload.pageSize)
+         {
+            var startIndex = (payload.page - 1) * payload.pageSize;
+            url = urlUtils.addQueryParameter(url, "startIndex", startIndex);
+         }
          
          this.serviceXhr({
-            url: AlfConstants.PROXY_URI + "api/people",
+            url: url,
             method: "GET",
             alfResponseTopic: topic,
+            alfSuccessTopic: payload.alfSuccessTopic,
+            alfFailureTopic: payload.alfFailureTopic,
             successCallback: this.onUsersSuccess,
             failureCallback: this.onUsersFailure,
             callbackScope: this
@@ -135,7 +424,7 @@ define(["dojo/_base/declare",
                }
             });
 
-            this.alfPublish(originalRequestConfig.alfResponseTopic, {
+            this.alfPublish(originalRequestConfig.alfSuccessTopic || originalRequestConfig.alfResponseTopic, {
                items: items
             });
          }

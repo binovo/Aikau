@@ -91,7 +91,21 @@ define(["dojo/_base/declare",
          var noRefresh = lang.getObject("data.noRefresh", false, originalRequestConfig);
          if (noRefresh !== true)
          {
-           this.alfPublish("ALF_DOCLIST_RELOAD_DATA", null, false, false, originalRequestConfig.responseScope);
+            // See AKU-1020
+            // Check the original request for a "createdItemKey" attribute, this will be passed on in 
+            // the reload data request to give the list an opportunity to select the created item...
+            var payload = null;
+            if (originalRequestConfig.createdItemKey)
+            {
+               var itemKey = lang.getObject(originalRequestConfig.createdItemKey, false, response);
+               if (itemKey)
+               {
+                  payload = {
+                     focusItemKey: itemKey
+                  };
+               }
+            }
+            this.alfPublish("ALF_DOCLIST_RELOAD_DATA", payload, false, false, originalRequestConfig.responseScope);
          }
       },
 
@@ -122,6 +136,10 @@ define(["dojo/_base/declare",
             {
                url = AlfConstants.URL_SERVICECONTEXT + url;
             }
+            else if (urlType === "FULL")
+            {
+               // No action, leave the URL as it is.
+            }
             else 
             {
                this.alfLog("warn", "An unknown URL type was requested, using provided URL", payload, this);
@@ -138,7 +156,7 @@ define(["dojo/_base/declare",
        * @returns {object} The cloned payload
        */
       clonePayload: function alfresco_services_CrudService__clonePayload(payload) {
-         return this.alfCleanFrameworkAttributes(payload, false, ["url"]);
+         return this.alfCleanFrameworkAttributes(payload, false, ["url","createdItemKey"]);
       },
 
       /**
@@ -174,9 +192,7 @@ define(["dojo/_base/declare",
          }
          if (payload.dataFilters)
          {
-            array.forEach(payload.dataFilters, function(filter) {
-               url = this.addQueryParameter(url, filter.name, filter.value);
-            }, this);
+            url = urlUtils.addFilterQueryParameters(url, payload);
          }
 
          var config = {
@@ -229,6 +245,7 @@ define(["dojo/_base/declare",
          var url = this.getUrlFromPayload(payload);
          this.serviceXhr({
             url: url,
+            createdItemKey: payload.createdItemKey,
             responseScope: payload.alfResponseScope,
             data: this.clonePayload(payload),
             method: "POST",

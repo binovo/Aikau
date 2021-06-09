@@ -11,6 +11,8 @@ if (page.url.templateArgs.site)
       name: "alfresco/header/SearchBox",
       config: {
          site: page.url.templateArgs.site,
+         siteName: "SiteLabel",
+         enableContextLiveSearch: true,
          alignment: "right",
          width: "500",
          documentLibraryPage: "custom-document-container",
@@ -119,6 +121,17 @@ model.jsonModel = {
             publishPayloadItemMixin: false,
             publishGlobal: true,
             publishToParent: false
+         }
+      },
+      {
+         id: "SB7",
+         name: "alfresco/header/SearchBox",
+         config: {
+            alignment: "left",
+            site: page.url.templateArgs.site,
+            liveSearchHeight: "100px",
+            documentLibraryPage: "custom-document-container",
+            documentPage: "custom-document-details"
          }
       },
       {

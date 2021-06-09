@@ -59,6 +59,17 @@ define(["dojo/_base/declare",
       cssRequirements: [{cssFile:"./css/AlfSearchList.css"}],
 
       /**
+       * An optional map of additional key/value pairs of query parameters to apply to all
+       * searches.
+       *
+       * @instance
+       * @type {object}
+       * @default
+       * @since 1.0.96
+       */
+      additionalQueryParameters: null,
+
+      /**
        * The facet fields to include in searches. This is updated by the onIncludeFacetRequest function.
        *
        * @instance
@@ -98,6 +109,16 @@ define(["dojo/_base/declare",
        * @since 1.0.41
        */
       itemKeyProperty: "nodeRef",
+
+      /**
+       * The message key to use when displaying the number of results found.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.70
+       */
+      resultsCountMessage: "faceted-search.results-menu.results-found-patch",
 
       /**
        * The current term to search on
@@ -314,6 +335,7 @@ define(["dojo/_base/declare",
        */
       onAdvancedSearch: function alfresco_search_AlfSearchList__onAdvancedSearch(payload) {
          this.resetResultsList();
+         this.alfCleanFrameworkAttributes(payload, true);
          this.searchTerm = payload.searchTerm;
          delete payload.searchTerm;
          this.query = payload;
@@ -658,6 +680,18 @@ define(["dojo/_base/declare",
                   }
                }
 
+               // Add in any additional query parameters...
+               if (this.additionalQueryParameters)
+               {
+                  for (key in this.additionalQueryParameters)
+                  {
+                     if (this.additionalQueryParameters.hasOwnProperty(key))
+                     {
+                        searchPayload[key] = this.additionalQueryParameters[key];
+                     }
+                  }
+               }
+
                // Set a response topic that is scoped to this widget...
                searchPayload.alfResponseTopic = this.pubSubScope + "ALF_RETRIEVE_DOCUMENTS_REQUEST";
                this.alfPublish(topics.SEARCH_REQUEST, searchPayload, true);
@@ -737,7 +771,7 @@ define(["dojo/_base/declare",
             // Publish the number of search results found...
             this.alfPublish("ALF_SEARCH_RESULTS_COUNT", {
                count: resultsCount,
-               label: this.message("faceted-search.results-menu.results-found-patch", {
+               label: this.message(this.resultsCountMessage, {
                   0: resultsCount
                })
             });

@@ -36,7 +36,7 @@ define(["dojo/_base/declare",
         "dojo/text!./templates/AlfListView.html",
         "alfresco/lists/views/layouts/_MultiItemRendererMixin",
         "alfresco/documentlibrary/_AlfDndDocumentUploadMixin",
-        "alfresco/lists/views/ListRenderer",
+        "aikau/lists/views/ListRenderer",
         "alfresco/lists/views/RenderAppendixSentinel",
         "alfresco/core/Core",
         "alfresco/core/JsNode",
@@ -45,9 +45,10 @@ define(["dojo/_base/declare",
         "dojo/_base/array",
         "dojo/dom-construct",
         "dojo/dom-class",
+        "dojo/dom-style",
         "dojo/query"],
         function(declare, _WidgetBase, _TemplatedMixin, template, _MultiItemRendererMixin, _AlfDndDocumentUploadMixin, ListRenderer,
-                 RenderAppendixSentinel, AlfCore, JsNode, WidgetsCreator, lang, array, domConstruct, domClass, query) {
+                 RenderAppendixSentinel, AlfCore, JsNode, WidgetsCreator, lang, array, domConstruct, domClass, domStyle, query) {
 
    return declare([_WidgetBase, _TemplatedMixin, _MultiItemRendererMixin, AlfCore, _AlfDndDocumentUploadMixin], {
 
@@ -89,9 +90,9 @@ define(["dojo/_base/declare",
 
       /**
        * This is the property of each item in the list that uniquely identifies that item. This
-       * should be configured correctly in order for items to be 
+       * should be configured correctly in order for items to be
        * [brought into view]{@link module alfresco/lists/views/ListRenderer#bringItemIntoView} as required.
-       * 
+       *
        * @instance
        * @type {string}
        * @default
@@ -108,8 +109,19 @@ define(["dojo/_base/declare",
       itemsProperty: "response.items",
 
       /**
+       * Minimum height for this view. Not used by default. Can be either a Number (treated as pixels) or
+       * a String (treated as CSS units).
+       *
+       * @instance
+       * @type {Number|String}
+       * @default
+       * @since 1.0.67
+       */
+      minHeight: null,
+
+      /**
        * This can be set to be a custom message that is displayed when there are no items to
-       * be displayed in the current view. This will not be used if 
+       * be displayed in the current view. This will not be used if
        * [widgetsForNoDataDisplay]{@link module alfresco/lists/views/ListRenderer#widgetsForNoDataDisplay}
        * is configured.
        *
@@ -143,22 +155,22 @@ define(["dojo/_base/declare",
       subscribeToDocRequests: false,
 
       /**
-       * Overrides the 
+       * Overrides the
        * [inherited default configuration]{@link module:alfresco/documentlibrary/_AlfDndDocumentUploadMixin#suppressDndUploading}
        * to suppress the drag-and-drop upload highlighting.
-       * 
+       *
        * @instance
        * @type {boolean}
        * @default
        * @since 1.0.39
        */
       suppressDndUploading: true,
-      
+
       /**
        * This will be automatically set when the view is used in an [AlfHashList]{@link module:alfresco/lists/AlfHashList}.
        * It indicates whether or not the list is being driven by data set on the browser URL hash and it can be useful
        * for views to have access to this information.
-       * 
+       *
        * @instance
        * @type {boolean}
        * @default
@@ -175,7 +187,7 @@ define(["dojo/_base/declare",
        * @since 1.0.32
        */
       useInfiniteScroll: false,
-      
+
       /**
        * The configuration for view selection menu items. This needs to be either configured or defined in an
        * extending module. If this isn't specified then the view will not be selectable in the document list.
@@ -202,10 +214,10 @@ define(["dojo/_base/declare",
        * An optional widget model to be rendered as an appendix to the actual data. If this is
        * defined then it will never be possible for the
        * [widgetsForNoDataDisplay]{@link module:alfresco/lists/views/AlfListView#widgetsForNoDataDisplay}
-       * model to be rendered because it results in a special 
+       * model to be rendered because it results in a special
        * [marker]{@link module:alfresco/lists/views/RenderAppendixSentinel}
        * being added to the data set to be rendered.
-       * 
+       *
        * @instance
        * @type {object[]}
        * @default
@@ -221,6 +233,38 @@ define(["dojo/_base/declare",
        * @default
        */
       widgetsForNoDataDisplay: null,
+
+      /**
+       * This can be called to focus on a specific item in the view. The itemKey provided must match
+       * the value of the [itemKey property]{@link module:alfresco/lists/views/AlfListView#itemKey}
+       * of an item in the rendered data.
+       *
+       * @instance
+       * @param {string} itemKey The key of the item to focus on.
+       * @since 1.0.77
+       */
+      focusOnItem: function alfresco_lists_views_AlfListView__focusOnItem(itemKey) {
+         if (this.docListRenderer && this.docListRenderer._renderedItemWidgets)
+         {
+            array.some(this.docListRenderer._renderedItemWidgets, function(widgets) {
+               return array.some(widgets, function(widget) {
+                  var found = false;
+                  if (widget &&
+                      widget.currentItem &&
+                      (widget.currentItem[this.itemKey] || widget.currentItem[this.itemKey] === 0) &&
+                      widget.currentItem[this.itemKey].toString() === itemKey)
+                  {
+                     if (widget.domNode)
+                     {
+                        widget.domNode.click();
+                     }
+                     found = true;
+                  }
+                  return found;
+               }, this);
+            }, this);
+         }
+      },
 
       /**
        * Implements the widget life-cycle method to add drag-and-drop upload capabilities to the root DOM node.
@@ -264,6 +308,12 @@ define(["dojo/_base/declare",
             this.renderView(false);
          }
          this._renderOptionalElements();
+
+         // Apply any min-height value
+         if (typeof this.minHeight === "number") {
+            this.minHeight += "px";
+         }
+         this.minHeight && domStyle.set(this.domNode, "min-height", this.minHeight);
       },
 
       /**
@@ -274,14 +324,14 @@ define(["dojo/_base/declare",
        * @param {object} payload A payload containing a view value and a promise to resolve.
        */
       onViewNameRequest: function alfresco_lists_views_AlfListView__onViewNameRequest(payload) {
-         if (payload && 
-             payload.value === this.getViewName() && 
-             payload.promise && 
+         if (payload &&
+             payload.value === this.getViewName() &&
+             payload.promise &&
              typeof payload.promise.resolve === "function")
          {
             payload.promise.resolve({
                value: this.getViewName(),
-               label: this.viewSelectionConfig.label 
+               label: this.viewSelectionConfig.label
             });
          }
       },
@@ -393,68 +443,104 @@ define(["dojo/_base/declare",
        * most common example of this is when infinite scroll is being used.
        */
       renderView: function alfresco_lists_views_AlfListView__renderView(preserveCurrentData) {
-         if (this.currentData && this.currentData.items)
-         {
-            if (this.widgetsForAppendix)
+         var promisedView = new Promise(lang.hitch(this, function(resolve, /*jshint unused:false*/ reject) {
+            // jshint maxcomplexity:false
+            if (this.currentData && this.currentData.items)
             {
-               var containsSentinel = array.some(this.currentData.items, function(item) {
-                  return item === RenderAppendixSentinel;
-               });
-               !containsSentinel && this.currentData.items.push(RenderAppendixSentinel);
-            }
-
-            if (this.currentData.items.length > 0)
-            {
-               try
+               if (this.widgetsForAppendix && this.currentData.items)
                {
-                  if (this.messageNode)
+                  var containsSentinel = this.currentData.items.some(function(item) {
+                     return item === RenderAppendixSentinel;
+                  });
+                  !containsSentinel && this.currentData.items.push(RenderAppendixSentinel);
+               }
+
+               if (this.currentData.items.length > 0)
+               {
+                  try
                   {
-                     domConstruct.destroy(this.messageNode);
+                     if (this.messageNode)
+                     {
+                        domConstruct.destroy(this.messageNode);
+                     }
+
+                     // If we don't want to preserve the current data (e.g. if infinite scroll isn't being used)
+                     // then we should destroy the previous renderer...
+                     if ((preserveCurrentData === false || preserveCurrentData === undefined) && this.docListRenderer)
+                     {
+                        this.destroyRenderer();
+                     }
+
+                     // If the renderer is null we need to create one (this typically wouldn't be expected to happen)
+                     // when rendering additional infinite scroll data...
+                     if (!this.docListRenderer)
+                     {
+                        this.docListRenderer = this.createListRenderer();
+                        this.docListRenderer.placeAt(this.tableNode, "last");
+                     }
+
+                     // Ensure that the renderer has has the same itemKey value as configured on the view. This is
+                     // so that comparisons can be made for selection and items can be brought into view as necessary
+                     this.docListRenderer.itemKey = this.itemKey;
+
+                     // Finally, render the current data (when using infinite scroll the data should have been augmented)
+                     var promisedData = this.docListRenderer.renderData();
+                     if (promisedData)
+                     {
+                        promisedData.then(
+                           lang.hitch(this, function(renderedItems) {
+                              if (renderedItems.length)
+                              {
+                                 resolve(renderedItems);
+                              }
+                              else
+                              {
+                                 this.renderNoDataDisplay();
+                                 resolve();
+                              }
+                           }),
+                           lang.hitch(this, function(reason) {
+                              this.alfLog("error", "The following error occurred rendering the data:", reason, this);
+                                 this.renderErrorDisplay();
+                                 resolve();
+                              })
+                        );
+                     }
+                     else if (query(this.renderFilterSelectorQuery, this.tableNode).length === 0)
+                     {
+                        this.renderNoDataDisplay();
+                        resolve();
+                     }
+                     else
+                     {
+                        // TODO: Better error handling when the renderer doesn't return a promise
+                        this.alfLog("warn", "The view renderer does not return a promise when rendering data", this);
+                        resolve();
+                     }
                   }
-
-                  // If we don't want to preserve the current data (e.g. if infinite scroll isn't being used)
-                  // then we should destroy the previous renderer...
-                  if ((preserveCurrentData === false || preserveCurrentData === undefined) && this.docListRenderer)
+                  catch(e)
                   {
-                     this.destroyRenderer();
-                  }
-
-                  // If the renderer is null we need to create one (this typically wouldn't be expected to happen)
-                  // when rendering additional infinite scroll data...
-                  if (!this.docListRenderer)
-                  {
-                     this.docListRenderer = this.createListRenderer();
-                     this.docListRenderer.placeAt(this.tableNode, "last");
-                  }
-
-                  // Ensure that the renderer has has the same itemKey value as configured on the view. This is
-                  // so that comparisons can be made for selection and items can be brought into view as necessary
-                  this.docListRenderer.itemKey = this.itemKey;
-                  
-                  // Finally, render the current data (when using infinite scroll the data should have been augmented)
-                  this.docListRenderer.renderData();
-
-                  // Check to see if any rows were rendered (allows for renderFilters on widgets. If they weren't, render no Data Display.
-                  if (query(this.renderFilterSelectorQuery, this.tableNode).length === 0)
-                  {
-                     this.renderNoDataDisplay();
+                     // TODO: This should return a promise itself...
+                     this.alfLog("error", "The following error occurred rendering the data", e, this);
+                     this.renderErrorDisplay();
+                     resolve();
                   }
                }
-               catch(e)
+               else
                {
-                  this.alfLog("error", "The following error occurred rendering the data", e, this);
-                  this.renderErrorDisplay();
+                  // TODO: This should return a promise itself...
+                  this.renderNoDataDisplay();
+                  resolve();
                }
             }
             else
             {
+               // TODO: This should return a promise itself...
                this.renderNoDataDisplay();
+               resolve();
             }
-         }
-         else
-         {
-            this.renderNoDataDisplay();
-         }
+         }));
+         return promisedView;
       },
 
       /**
@@ -495,8 +581,8 @@ define(["dojo/_base/declare",
       },
 
       /**
-       * This should be called when the renderers need to be removed. 
-       * 
+       * This should be called when the renderers need to be removed.
+       *
        * @instance
        * @extendable
        * @since 1.0.32
@@ -558,11 +644,8 @@ define(["dojo/_base/declare",
          // the default message with them...
          if (this.widgetsForNoDataDisplay)
          {
-            var wc = new WidgetsCreator({
-               widgets: this.widgetsForNoDataDisplay
-            });
             domConstruct.empty(this.messageNode);
-            wc.buildWidgets(this.messageNode);
+            this.processWidgets(this.widgetsForNoDataDisplay, this.messageNode, "WIDGETS_FOR_NO_DATA_DISPLAY");
          }
       },
 
@@ -616,7 +699,7 @@ define(["dojo/_base/declare",
          {
             // Create a caption node
             var caption = domConstruct.create("caption", {
-               innerHTML: this.a11yCaption
+               innerHTML: this.encodeHTML(this.a11yCaption)
             }, this.tableNode, "first");
 
             // Apply a class to the caption

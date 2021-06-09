@@ -22,53 +22,12 @@
  * on [the mode]{@link module:alfresco/forms/controls/PushButtonsControl#multiMode}, rendered as a
  * single control with push-button options.
  *
- * @example <caption>Sample configuration (uses noWrap and percentGap overrides):</caption>
- * {
- *    name: "alfresco/forms/controls/PushButtons",
- *    id: "CAN_BUILD",
- *    config: {
- *       name: "canbuild",
- *       label: "Can we build it?",
- *       noWrap: true,
- *       percentGap: 5,
- *       optionsConfig: {
- *          fixed: [
- *             {
- *                label: "Yes we can",
- *                value: true
- *             },
- *             {
- *                label: "No we can't",
- *                value: false
- *             }
- *          ]
- *       }
- *    }
- * }
- * 
- * @example <caption>Sample configuration (uses custom theme, ficed-width, multi-value mode properties):</caption>
- * {
- *    name: "alfresco/forms/controls/PushButtons",
- *    id: "PROPER_FOOTBALL",
- *    config: {
- *       additionalCssClasses: "grey-gradient",
- *       name: "properfootball",
- *       label: "Only proper form of football?",
- *       width: 400,
- *       multiMode: true,
- *       optionsConfig: {
- *          publishTopic: "GET_FOOTBALL_OPTIONS",
- *          publishGlobal: true
- *       }
- *    }
- * }
- *
  * @module alfresco/forms/controls/PushButtonsControl
  * @extends external:dijit/_WidgetBase
  * @mixes external:dijit/_TemplatedMixin
  * @mixes external:dijit/_FocusMixin
- * @mixes alfresco/core/Core
- * @mixes alfresco/core/ObjectProcessingMixin
+ * @mixes module:alfresco/core/Core
+ * @mixes module:alfresco/core/ObjectProcessingMixin
  * @author Martin Doyle
  * @since 1.0.44
  */
@@ -226,6 +185,22 @@ define(["alfresco/core/Core",
          selections: null,
 
          /**
+          * When the simple layout is selected control of the layout of buttons is surrendered
+          * to the default behaviour. This means that buttons are not of equal widths and 
+          * will fill the available space as best they can. Enabling this feature disables
+          * [width]{@link module:alfresco/forms/controls/PushButtonsControl#width},
+          * [percentGap]{@link module:alfresco/forms/controls/PushButtonsControl#percentGap},
+          * [noWrap]{@link module:alfresco/forms/controls/PushButtonsControl#noWrap} and
+          * [maxLineLength]{@link module:alfresco/forms/controls/PushButtonsControl#maxLineLength}.
+          * 
+          * @instance
+          * @type {boolean}
+          * @default
+          * @since 1.0.72
+          */
+         simpleLayout: false,
+
+         /**
           * The total width of the control in pixels. Zero indicates that
           * the control should take as much space as needed.
           *
@@ -367,34 +342,43 @@ define(["alfresco/core/Core",
           */
          resize: function alfresco_forms_controls_PushButtonsControl__resize() {
 
-            // Set overall control width
-            domStyle.set(this.domNode, "width", isNaN(this.width) ? this.width : this.width + "px");
+            if (this.simpleLayout)
+            {
+               domClass.add(this.domNode, "alfresco-forms-controls-PushButtonsControl--simple-layout");
+            }
+            else
+            {
+               // Set overall control width
+               domStyle.set(this.domNode, "width", isNaN(this.width) ? this.width : this.width + "px");
+            
+               // Set the width of each button
+               var buttonsPerLine = this.maxLineLength ? Math.min(this.maxLineLength, this.opts.length) : this.opts.length;
+               var gapsPerLine = buttonsPerLine - 1;
+               var availButtonPercent = 100 - (gapsPerLine * this.percentGap);
+               var buttonWidthPercent = availButtonPercent / buttonsPerLine;
+               
+               array.forEach(this.opts, function(opt, buttonIndex) {
+                  var indexInRow = buttonIndex % buttonsPerLine;
+                  var lastInRow = indexInRow + 1 === buttonsPerLine;
+                  var isFirstRow = buttonIndex < buttonsPerLine;
+                  domStyle.set(opt.labelNode, {
+                     width: buttonWidthPercent + "%",
+                     marginTop: isFirstRow ? 0 : this.percentGap + "%",
+                     marginRight: lastInRow ? 0 : this.percentGap + "%",
+                     whiteSpace: this.noWrap ? "nowrap" : "normal"
+                  });
+               }, this);
 
-            // Set the width of each button
-            var buttonsPerLine = this.maxLineLength ? Math.min(this.maxLineLength, this.opts.length) : this.opts.length,
-               gapsPerLine = buttonsPerLine - 1,
-               availButtonPercent = 100 - (gapsPerLine * this.percentGap),
-               buttonWidthPercent = availButtonPercent / buttonsPerLine;
-            array.forEach(this.opts, function(opt, buttonIndex) {
-               var indexInRow = buttonIndex % buttonsPerLine,
-                  lastInRow = indexInRow + 1 === buttonsPerLine,
-                  isFirstRow = buttonIndex < buttonsPerLine;
-               domStyle.set(opt.labelNode, {
-                  width: buttonWidthPercent + "%",
-                  marginTop: isFirstRow ? 0 : this.percentGap + "%",
-                  marginRight: lastInRow ? 0 : this.percentGap + "%",
-                  whiteSpace: this.noWrap ? "nowrap" : "normal"
-               });
-            }, this);
-
-            // If width not hard-coded, set the width of the control based on the content plus padding
-            if (!this.width) {
-               var maxLabelWidth = 0;
-               array.forEach(this.opts, function(opt) {
-                  maxLabelWidth = Math.max(maxLabelWidth, opt.labelContentNode.scrollWidth);
-               });
-               var minLineLength = (maxLabelWidth + this.minPadding) * buttonsPerLine / (availButtonPercent / 100);
-               domStyle.set(this.domNode, "width", Math.ceil(minLineLength) + "px");
+               // If width not hard-coded, set the width of the control based on the content plus padding
+               if (!this.width) 
+               {
+                  var maxLabelWidth = 0;
+                  array.forEach(this.opts, function(opt) {
+                     maxLabelWidth = Math.max(maxLabelWidth, opt.labelContentNode.scrollWidth);
+                  });
+                  var minLineLength = (maxLabelWidth + this.minPadding) * buttonsPerLine / (availButtonPercent / 100);
+                  domStyle.set(this.domNode, "width", Math.ceil(minLineLength) + "px");
+               }
             }
          },
 

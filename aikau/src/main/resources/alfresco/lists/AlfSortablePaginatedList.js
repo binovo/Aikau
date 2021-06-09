@@ -18,11 +18,77 @@
  */
 
 /**
- * <p>This extends the [hash list]{@link module:alfresco/lists/AlfHashList} to provide support
- * for common pagination and sorting behaviour.</p>
+ * <p>This extends the [AlfHashList]{@link module:alfresco/lists/AlfHashList} to provide support
+ * for common pagination and sorting behaviour. It does not render any interface for controlling
+ * the current page or sort preferences - the [Paginator]{@link module:alfresco/lists/Paginator} widget
+ * can be used for changing page and the number of items shown per page. Sorting can be controlled
+ * through the [SortFieldSelect]{@link module:alfresco/lists/SortFieldSelect} and
+ * [SortOrderToggle]{@link module:alfresco/lists/SortOrderToggle} widgets.</p>
+ * 
+ *  <p>It is important to understand that this widget does not perform
+ * any client-side sorting or pagination, it simply controls the payloads published to services -
+ * successful pagination and sorting are determined by the ability of the service and the
+ * REST API ultimately called to support it.</p>
  *
- * <p>It is possible to specify the [pageSizePreferenceName]{@link module:alfresco/lists/AlfSortablePaginatedList#pageSizePreferenceName}
- * to be used by this widget (or its descendants), by setting a new value for the property in the model config.</p>
+ * <p>It is possible to specify the 
+ * [pageSizePreferenceName]{@link module:alfresco/lists/AlfSortablePaginatedList#pageSizePreferenceName}
+ * to be used by this widget (or its descendants) when the 
+ * [PreferenceService]{@link module:alfresco/services/PreferenceService} is being used to set the intial
+ * page size. Alternatively it can be specified by the 
+ * [currentPageSize]{@link module:alfresco/lists/AlfSortablePaginatedList#currentPageSize}. Similarly 
+ * the initial page number can be configured with the 
+ * [currentPage]{@link module:alfresco/lists/AlfSortablePaginatedList#currentPage} attribute. Page
+ * and page size data can also be derived from browser URL hash parameters when
+ * [useHash]{@link module:alfresco/lists/AlfHashList#useHash} is configured to be true.</p>
+ * 
+ * <p>Page navigation can also be performed with infinite scrolling when
+ * [useInfiniteScroll]{@link module:alfresco/lists/AlfSortablePaginatedList#useInfiniteScroll} is configured
+ * to be true and either the [InfiniteScrollService]{@link module:alfresco/services/InfiniteScrollService}
+ * is included in the page or the list is placed in an 
+ * [InfiniteScrollArea]{@link module:alfresco/layout/InfiniteScrollArea}.</p>
+ *
+ * <p>The initial field to sort on can be configured with the 
+ * [sortField]{@link module:alfresco/lists/AlfSortablePaginatedList#sortField} and the initial 
+ * sort direction can configured by setting
+ * [sortAscending]{@link module:alfresco/lists/AlfSortablePaginatedList#sortAscending} to true
+ * or false as appropriate. The sort field and direction can be changed by 
+ * widgets (such as menus or buttons) publishing on the
+ * [sortRequestTopic]{@link module:alfresco/lists/AlfSortablePaginatedList#sortRequestTopic} topic.</p>
+ *
+ * @example <caption>AlfSortablePaginatedList with associated sort and pagination widgets</caption>
+ * {
+ *   name: "alfresco/lists/Paginator",
+ *   config: {
+ *     pageSizes: [5,10,20],
+ *     widgetsAfter: [
+ *       {
+ *         name: "alfresco/lists/SortFieldSelect",
+ *         config: {
+ *           sortFieldOptions: [
+ *             { label: "Display Name", value: "fullName" },
+ *             { label: "User Name", value: "userName" }
+ *           ]
+ *         }
+ *       },
+ *       {
+ *         name: "alfresco/lists/SortOrderToggle"
+ *       }
+ *     ]
+ *   }
+ * },
+ * {
+ *   name: "alfresco/lists/AlfSortablePaginatedList",
+ *   config: {
+ *     loadDataPublishTopic: "ALF_GET_USERS",
+ *     currentPageSize: 10,
+ *     sortField: "fullName",
+ *     widgets: [
+ *       {
+ *         name: "alfresco/lists/views/HtmlListView"
+ *       }
+ *     ]
+ *   }
+ * }
  *
  * @module alfresco/lists/AlfSortablePaginatedList
  * @extends module:alfresco/lists/AlfHashList
@@ -107,22 +173,46 @@ define(["dojo/_base/declare",
       sortField: "cm:name",
 
       /**
+       * The initial label of the sort field. It is not necessary to set this if no other widgets require
+       * it. However, it will be updated on external sort requests if a "label" attribute is provided. The
+       * reason for setting it is so that other widgets (such as an 
+       * [AlfMenuBarSelect]{@link module:alfresco/menus/AlfMenuBarSelect}) used to control the sort field
+       * can be updated with the appropriate label.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.73
+       */
+      sortFieldLabel: "",
+      
+      /**
+       * @event sortRequestTopic
+       * @instance
+       * @type {string}
+       * @default [SORT_LIST]{@link module:alfresco/core/topics#SORT_LIST}
+       * @since 1.0.102
+       */
+      sortRequestTopic: topics.SORT_LIST,
+
+      /**
        * Extends the [inherited function]{@link module:alfresco/lists/AlfList#showView} to set the sort data for
        * any [HeaderCell]{@link module:alfresco/lists/views/layouts/HeaderCell} widgets that might be included in the
        * view.
        * 
        * @instance
        * @since 1.0.59
-       * @fires module:alfresco/core/topics#SORT_LIST
+       * @fires module:alfresco/lists//AlfSortablePaginatedList#sortRequestTopic
        */
       showView: function alfresco_lists_AlfSortablePaginatedList__showView() {
          this.inherited(arguments);
          if (!this.useHash)
          {
             this.alfLog("info", "Really should publish sort data");
-            this.alfPublish(topics.SORT_LIST, {
+            this.alfPublish(this.sortRequestTopic, {
                direction: (this.sortAscending) ? "ascending" : "descending",
                value: this.sortField,
+               label: this.sortFieldLabel,
                requester: this
             });
          }
@@ -161,8 +251,10 @@ define(["dojo/_base/declare",
       setPageSize: function alfresco_lists_AlfSortablePaginatedList__setPageSize(value) {
          if (value)
          {
-            this.onItemsPerPageChange({
-               value: value
+            this.alfPublish(this.docsPerpageSelectionTopic, {
+               label: this.message("list.paginator.perPage.label", {0: value}),
+               value: value,
+               selected: true
             });
          }
          this.currentPageSize = value || this.currentPageSize || 25;
@@ -230,6 +322,7 @@ define(["dojo/_base/declare",
        * @param {object} payload The details of the request
        */
       onSortRequest: function alfresco_lists_AlfSortablePaginatedList__onSortRequest(payload) {
+         /* jshint maxcomplexity:false */
          this.alfLog("log", "Sort requested: ", payload);
          if (payload && payload.requester !== this && (payload.direction !== null || payload.value !== null))
          {
@@ -240,6 +333,10 @@ define(["dojo/_base/declare",
             if (payload.value)
             {
                this.sortField = payload.value;
+            }
+            if (payload.label)
+            {
+               this.sortFieldLabel = payload.label;
             }
             if (this._readyToLoad === true)
             {
@@ -448,7 +545,9 @@ define(["dojo/_base/declare",
          // NOTE: The use of the currentData.totalRecords and currentData.numberFound is only retained to support
          //       AlfSearchList and faceted search in Share - generic infinite scroll should be done via the
          //       totalRecords, startIndex and currentPageSize values...
-         if(this.useInfiniteScroll && 
+         // See AKU-1007 - we also want to prevent loading another page of data when a request is already in progress
+         if(!this.requestInProgress && 
+            this.useInfiniteScroll && 
             ((this.totalRecords > (this.startIndex + this.currentPageSize)) ||
             (this.currentData && (this.currentData.totalRecords < this.currentData.numberFound))))
          {
@@ -466,7 +565,7 @@ define(["dojo/_base/declare",
        */
       updateLoadDataPayload: function alfresco_lists_AlfSortablePaginatedList__updateLoadDataPayload(payload) {
          this.inherited(arguments);
-         payload.sortAscending = this.sortAscending;
+         payload.sortAscending = (this.sortAscending === "true" || this.sortAscending === true);
          payload.sortField = this.sortField;
          if (this.usePagination || this.useInfiniteScroll)
          {

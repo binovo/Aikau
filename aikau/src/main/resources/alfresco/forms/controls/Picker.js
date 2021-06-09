@@ -37,8 +37,9 @@ define(["alfresco/forms/controls/BaseFormControl",
         "dojo/_base/declare",
         "dojo/_base/lang",
         "dojo/_base/array",
-        "dojo/when"], 
-        function(BaseFormControl, CoreWidgetProcessing, declare, lang, array, when) {
+        "dojo/when",
+        "alfresco/core/ObjectTypeUtils"], 
+        function(BaseFormControl, CoreWidgetProcessing, declare, lang, array, when, ObjectTypeUtils) {
    
    return declare([BaseFormControl, CoreWidgetProcessing], {
       
@@ -161,12 +162,22 @@ define(["alfresco/forms/controls/BaseFormControl",
        * @returns {object}
        */
       getValue: function alfresco_forms_controls_Picker__getValue() {
-         var processedItems = [];
-         var items = this.getPickedItemsWidget().currentData.items;
-         array.forEach(items, function(item) {
-            processedItems.push(item[this.itemKey]);
-         }, this);
-         return processedItems;
+         var value = [];
+         var pickedItemsWidget = this.getPickedItemsWidget();
+         if (pickedItemsWidget)
+         {
+             var items = pickedItemsWidget.currentData.items;
+             array.forEach(items, function(item) {
+                 value.push(item[this.itemKey]);
+             }, this);
+         }
+         
+         if (value && this.valueDelimiter)
+         {
+            value = value.join(this.valueDelimiter);
+         }
+         
+         return value;
       },
       
       /**
@@ -177,6 +188,34 @@ define(["alfresco/forms/controls/BaseFormControl",
        * @param {object} value
        */
       setValue: function alfresco_forms_controls_Picker__setValue(value) {
+         if (ObjectTypeUtils.isString(value))
+         {
+             if (this.valueDelimiter)
+             {
+                 value = value.split(this.valueDelimiter);
+             }
+             else
+             {
+                 value = [value];
+             }
+             
+             // itemKey may not be used for rendering items
+             // specialised sub modules may choose to resolve
+             // to fully fledged items
+             value = array.map(value, function(valueItem) {
+                 var v = {};
+                 v[this.itemKey] = valueItem;
+                 return v;
+             }, this);
+         }
+         
+         if (value && !ObjectTypeUtils.isArray(value))
+         {
+             value = [value];
+         }
+         
+         // TODO Handle single vs multiple items once support for distinction is added
+         
          var pickedItemsWidget = this.getPickedItemsWidget();
          pickedItemsWidget && pickedItemsWidget.setPickedItems(value);
       },

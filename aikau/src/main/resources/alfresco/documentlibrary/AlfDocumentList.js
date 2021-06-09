@@ -32,9 +32,9 @@ define(["dojo/_base/declare",
         "alfresco/util/hashUtils",
         "dojo/io-query",
         "dojo/dom-class"],
-        function(declare, AlfSortablePaginatedList, JsNode, topics, array, lang, hashUtils, ioQuery, domClass) {
+        function(declare, AlfFilteredList, JsNode, topics, array, lang, hashUtils, ioQuery, domClass) {
 
-   return declare([AlfSortablePaginatedList], {
+   return declare([AlfFilteredList], {
 
       /**
        * An array of the i18n files to use with this widget.
@@ -129,13 +129,21 @@ define(["dojo/_base/declare",
        */
       copyViewData: function alfresco_lists_AlfList__copyViewData(/*jshint unused:false*/oldView, newView) {
          this.inherited(arguments);
-         if (this.currentFilter && this.currentFilter.path)
+
+         // See AKU-954: Ensure DND upload permissions are set correctly...
+         var userPermissions = lang.getObject("currentData.metadata.parent.permissions.user", false, this);
+         var isContainer = lang.getObject("currentData.metadata.parent.isContainer", false, this);
+         if (userPermissions &&
+             ((isContainer === true && userPermissions.CreateChildren === true) ||
+             (isContainer === false && userPermissions.Write === true)))
          {
             newView.addUploadDragAndDrop(newView.dragAndDropNode);
+            domClass.add(newView.domNode, "alfresco-documentlibrary-AlfDocumentList--upload-enabled");
          }
          else
          {
             newView.removeUploadDragAndDrop(newView.dragAndDropNode);
+            domClass.remove(newView.domNode, "alfresco-documentlibrary-AlfDocumentList--upload-enabled");
          }
       },
 
@@ -169,7 +177,7 @@ define(["dojo/_base/declare",
        * @override
        * @since 1.0.48
        */
-      postCreate: function alfrescdo_documentlibrary_AlfDocumentList__postCreate() {
+      postCreate: function alfresco_documentlibrary_AlfDocumentList__postCreate() {
          this.inherited(arguments);
          domClass.add(this.domNode, "alfresco-documentlibrary-AlfDocumentList");
       },
@@ -186,7 +194,7 @@ define(["dojo/_base/declare",
        * @listens documentSelectionTopic
        * @listens parentNavTopic
        */
-      setupSubscriptions: function alfrescdo_documentlibrary_AlfDocumentList__setupSubscriptions() {
+      setupSubscriptions: function alfresco_documentlibrary_AlfDocumentList__setupSubscriptions() {
          this.inherited(arguments);
          this.alfSubscribe(topics.PATH_CHANGED, lang.hitch(this, this.onPathChanged));
          this.alfSubscribe("ALF_DOCUMENTLIST_CATEGORY_CHANGED", lang.hitch(this, this.onCategoryChanged));

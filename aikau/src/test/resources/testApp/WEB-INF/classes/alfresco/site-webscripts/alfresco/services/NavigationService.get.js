@@ -33,7 +33,13 @@ model.jsonModel = {
                }
             }
       },
-      "alfresco/services/NavigationService"
+      "alfresco/services/NavigationService",
+      {
+         name: "alfresco/services/NotificationService",
+         config: {
+            showProgressIndicator: true
+         }
+      }
    ],
    widgets: [
       label,
@@ -144,6 +150,19 @@ model.jsonModel = {
          }
       },
       {
+         id: "ACTION_LINK_FOR_DOWNLOAD",
+         name: "alfresco/buttons/AlfButton",
+         config: {
+            label: "Simulate action download link",
+            publishTopic: "ALF_NAVIGATE_TO_PAGE",
+            publishPayload: {
+               url: "tp/ws/NavigationService?a=true",
+               type: "PAGE_RELATIVE",
+               target: "CURRENT"
+            }
+         }
+      },
+      {
          id: "MENU_BAR",
          name: "alfresco/menus/AlfMenuBar",
          config: {
@@ -247,7 +266,27 @@ model.jsonModel = {
                         
                      }
                   }
+               },
+               {
+                  id: "SAME_PAGE_BUT_WITH_HASHES",
+                  name: "alfresco/menus/AlfMenuBarItem",
+                  config: {
+                     label: "Page relative no site with hash",
+                     publishTopic: "ALF_NAVIGATE_TO_PAGE",
+                     publishPayload: {
+                        url: "tp/ws/NavigationService#hash=test",
+                        type: "PAGE_RELATIVE",
+                        target: "CURRENT"
+                     },
+                     publishPayloadType: "PROCESS",
+                     publishPayloadModifiers: ["processCurrentItemTokens"],
+                     publishPayloadItemMixin: true,
+                     currentItem: {
+                        
+                     }
+                  }
                }
+
             ]
          }
       },

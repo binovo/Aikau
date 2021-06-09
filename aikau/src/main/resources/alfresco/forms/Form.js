@@ -61,10 +61,10 @@
  *                   initialValue: true
  *                }
  *             }
- *           }
- *        ]
- *     }
- *  }
+ *          }
+ *       ]
+ *    }
+ * }
  *
  * @example <caption>Example configuration for form that does not show validation errors on initial display:</caption>
  * {
@@ -83,10 +83,55 @@
  *                   initialValue: true
  *                }
  *             }
- *           }
- *        ]
- *     }
- *  }
+ *          }
+ *       ]
+ *    }
+ * }
+ *
+ * @example <caption>Example configuration for form with additional buttons:</caption>
+ * {
+ *    name: "alfresco/forms/Form",
+ *    config: {
+ *       okButtonPublishTopic: "SAVE_FORM",
+ *       okButtonLabel: "Save",
+ *       showValidationErrorsImmediately: false,
+ *       widgets: [
+ *          {
+ *             name: "alfresco/forms/controls/TextBox",
+ *             config: {
+ *                name: "control",
+ *                label: "Name",
+ *                requirementConfig: {
+ *                   initialValue: true
+ *                }
+ *             }
+ *          }
+ *       ],
+ *       widgetsAdditionalButtons: [
+ *          {
+ *             name: "alfresco/buttons/AlfButton",
+ *             config: {
+ *                label: "Button 1 (includes form values)",
+ *                publishTopic: "CUSTOM_TOPIC_1",
+ *                publishPayload: {
+ *                   additional: "data"
+ *                } 
+ *             }
+ *          },
+ *          {
+ *             name: "alfresco/buttons/AlfButton",
+ *             config: {
+ *                updatePayload: false,
+ *                label: "Button 1 (does not include form values)",
+ *                publishTopic: "CUSTOM_TOPIC_2",
+ *                publishPayload: {
+ *                   only: "data"
+ *                } 
+ *             }
+ *          }
+ *       ]
+ *    }
+ * }
  * 
  * @module alfresco/forms/Form
  * @extends external:dijit/_WidgetBase
@@ -117,9 +162,13 @@ define(["dojo/_base/declare",
         "dijit/registry",
         "dojo/Deferred",
         "dojo/dom-construct",
-        "dojo/dom-class"], 
+        "dojo/dom-class",
+        "dojo/_base/event",
+        "dojo/on",
+        "jquery"], 
         function(declare, _Widget, _Templated, Form, AlfCore, CoreWidgetProcessing, topics, _AlfHashMixin, RulesEngineMixin, 
-                 template, ioQuery, Warning, hashUtils, lang, AlfButton, array, registry, Deferred, domConstruct, domClass) {
+                 template, ioQuery, Warning, hashUtils, lang, AlfButton, array, registry, Deferred, domConstruct, domClass, 
+                 Event, on, $) {
    
    return declare([_Widget, _Templated, AlfCore, CoreWidgetProcessing, _AlfHashMixin, RulesEngineMixin], {
       
@@ -298,11 +347,29 @@ define(["dojo/_base/declare",
       waitForPageWidgets: true,
 
       /**
-       * Can be configured to display one or more banners on the form based on the changing value of fields
+       * <p>Can be configured to display one or more banners on the form based on the changing value of fields
        * within the form. The configuration is almost identical to that of the 
        * [visibilityConfig]{@link module:alfresco/forms/controls/BaseFormControl#visibilityConfig} in form fields
        * except that a "message" attribute should also be included that will be displayed when the rules 
-       * are evaluated to be true.
+       * are evaluated to be true.</p>
+       * <p>The default position for the warnings is at the top of the form but it is possible to move the
+       * warnings to the bottom of the form by configuring
+       * [warningsPosition]{@link module:alfresco/forms/Form#warningsPosition} to be "bottom".
+       * </p>
+       *
+       * @example <caption>Example configuration for warning displayed when "FIELD1" is set</caption>
+       * warnings: [
+       *   {
+       *     message: "Warning 1: Field 1 is not blank",
+       *     initialValue: true,
+       *     rules: [
+       *       {
+       *         targetId: "FIELD1",
+       *         isNot: [""]
+       *       }
+       *     ]
+       *   }
+       * ]
        *
        * @instance
        * @type {object[]}
@@ -324,7 +391,21 @@ define(["dojo/_base/declare",
       warningsPosition: "top",
 
       /**
+       * This is an optional topic that can be provided to allow other widgets to trigger the submission of 
+       * the form. This was added to support requirements of the
+       * [FormsRuntimeService]{@link module:alfresco/services/FormsRuntimeService} and in particular the
+       * [Transitions]{@link module:alfresco/forms/controls/Transitions} control.
+       * 
        * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.86
+       */
+      formSubmissionTriggerTopic: null,
+
+      /**
+       * @instance
+       * @listens module:alfresco/core/topics#GET_FORM_VALUE_DEPENDENT_OPTIONS
        */
       postCreate: function alfresco_forms_Form__postCreate() {
          // A form is configured to auto-save updates we want to be sure that it doesn't start saving until the 
@@ -347,9 +428,12 @@ define(["dojo/_base/declare",
          // Setup some arrays for recording the valid and invalid widgets...
          this.invalidFormControls = [];
          
-         // Create any configured warnings...
-         this.createWarnings();
-         
+         // Generate a new pubSubScope if required...
+         if (this.scopeFormControls === true && this.pubSubScope === "")
+         {
+            this.pubSubScope = this.generateUuid();
+         }
+
          // If requested in the configuration, the value of a form can be set via a publication,
          // however to avoid generating subscriptions unnecessarily the subscription is only
          // set if explicitly requested. Global scope is intentionally used for the subscription
@@ -362,11 +446,8 @@ define(["dojo/_base/declare",
          // that is augmented with the value of the form...
          this.alfSubscribe(topics.GET_FORM_VALUE_DEPENDENT_OPTIONS, lang.hitch(this, this.getFormValueDependantOptions));
 
-         // Generate a new pubSubScope if required...
-         if (this.scopeFormControls === true && this.pubSubScope === "")
-         {
-            this.pubSubScope = this.generateUuid();
-         }
+         // Create any configured warnings...
+         this.createWarnings();
 
          // When any of these topics are published, submit the form
          if (this.publishValueSubscriptions && this.publishValueSubscriptions.length) {
@@ -389,6 +470,23 @@ define(["dojo/_base/declare",
             // Create the buttons for the form...
             this.createButtons();
          }
+
+         // See AKU-1049 - check for any "late" registered fields. This triggers republication
+         // of values, but only occurs if the fields are added to the DOM after form setup 
+         // has completed. This addresses the case where wrappers - in particular TabbedControls
+         // - are used in a form
+         on(this.domNode, "ALF_FIELD_ADDED_TO_FORM", lang.hitch(this, function(evt) {
+            evt && Event.stop(evt);
+            if (this._formSetupComplete)
+            {
+               array.forEach(this._form.getChildren(), function(entry) {
+                  if (typeof entry.publishValue === "function")
+                  {
+                     entry.publishValue();
+                  }
+               });
+            }
+         }));
 
          // Add the widgets to the form...
          // The widgets should automatically inherit the pubSubScope from the form to scope communication
@@ -414,6 +512,13 @@ define(["dojo/_base/declare",
             array.forEach(this.okButtonEnablementTopics, function(topic) {
                this.setupOkButtonEnablementSubscription(topic);
             }, this);
+         }
+
+         if (this.formSubmissionTriggerTopic && this.okButton)
+         {
+            this.alfSubscribe(this.formSubmissionTriggerTopic, lang.hitch(this, function() {
+               this.okButton.onClick();
+            }));
          }
       },
 
@@ -542,7 +647,10 @@ define(["dojo/_base/declare",
 
             autoSavePayload = lang.mixin(this.autoSavePublishPayload || {}, {
                alfValidForm: isValid
-            }, this.getValue());
+            });
+
+            $.extend(true, autoSavePayload, this.getValue());
+
             this.alfPublish(this.autoSavePublishTopic, autoSavePayload, this.autoSavePublishGlobal);
          }
       },
@@ -572,7 +680,11 @@ define(["dojo/_base/declare",
          // it will provide the current form data...
          var formValue = this.getValue();
          array.forEach(this.additionalButtons, function(button) {
-            if (button._alfOriginalButtonPayload)
+            if (!button.updatePayload)
+            {
+               // No action required, leave the payload as is
+            }
+            else if (button._alfOriginalButtonPayload)
             {
                var newPayload = {};
                lang.mixin(newPayload, button._alfOriginalButtonPayload, formValue);
@@ -786,11 +898,16 @@ define(["dojo/_base/declare",
       cancelButtonPublishGlobal: null,
       
       /**
-       * If this is not null, then the form will auto-publish on this topic whenever a form's
-       * values change. This setting overrides and will remove the OK and Cancel buttons. If the form
-       * is being dynamically created after page load has completed (e.g. if the form is being displayed in 
-       * a dialog for example) then in order for auto-saving to occur it will also be necessary to configure 
-       * the [waitForPageWidgets]{@link module:alfresco/forms/Form#waitForPageWidgets} attribute to be false.
+       * <p>If this is not null, then the form will auto-publish on this topic whenever a form's
+       * values change. This setting overrides (and removes) the form buttons so that they are 
+       * no longer displayed. Auto-saving will <strong>not</strong> occur if the form is in an
+       * invalid state unless [autoSaveOnInvalid]{@link module:alfresco/forms/Form#autoSaveOnInvalid}
+       * is configured to be true.</p>
+       * 
+       * <p><strong>PLEASE NOTE:</strong> If the form is being dynamically created after page load has completed 
+       * (e.g. if the form is being displayed in a dialog for example) then in order for auto-saving to occur 
+       * it will also be necessary to configure the 
+       * [waitForPageWidgets]{@link module:alfresco/forms/Form#waitForPageWidgets} attribute to be false.</p>
        * 
        * @instance 
        * @type {string}
@@ -799,7 +916,9 @@ define(["dojo/_base/declare",
       autoSavePublishTopic: null,
       
       /**
-       * The payload to publish (will be the form's values if not specified)
+       * Additional data to be published on the 
+       * [autoSavePublishTopic]{@link module:alfresco/forms/Form#autoSavePublishTopic} 
+       * along with the form value.
        * 
        * @instance
        * @type {object}
@@ -808,6 +927,9 @@ define(["dojo/_base/declare",
       autoSavePublishPayload: null,
       
       /**
+       * Indicates that the [autoSavePublishTopic]{@link module:alfresco/forms/Form#autoSavePublishTopic}
+       * should be published on the global scope.
+       * 
        * @instance 
        * @type {string}
        * @default
@@ -815,10 +937,10 @@ define(["dojo/_base/declare",
       autoSavePublishGlobal: null,
 
       /**
-       * Whether, when autoSavePublish is enabled (i.e. autoSavePublishTopic is not null),
-       * to also publish when the form contains invalid values. If this is enabled, then
-       * the publish payload will have an additional alfFormInvalid property, which will
-       * be set to true.
+       * When [autoSavePublishTopic]{@link module:alfresco/forms/Form#autoSavePublishTopic} is
+       * configured this attribute can be set to true to indicate that publishing should also occur
+       * when the form contains invalid values. If this is enabled, then the publish payload will 
+       * have an additional alfFormInvalid property, which will be set to true.
        *
        * @instance
        * @type {boolean}
@@ -993,7 +1115,7 @@ define(["dojo/_base/declare",
          // (e.g. a field has become disabled since the last payload update and is configured to not have its value
          // included when it is hidden, therefore we need to ensure its previous value is NOT included in the payload)
          array.forEach(this.additionalButtons, function(button) {
-            if (button.publishPayload)
+            if (button.publishPayload && button.updatePayload)
             {
                button._alfOriginalButtonPayload = lang.clone(button.publishPayload);
             }
@@ -1007,9 +1129,21 @@ define(["dojo/_base/declare",
        * @since 1.0.49
        */
       submitOkButton: function alfresco_forms_Form__submitOkButton() {
-         if(!this.okButton) {
+         if(!this.okButton) 
+         {
             this.alfLog("warn", "Cannot submit OK button as button not defined");
-         } else {
+
+            // See AKU-1116
+            // If no buttons can be found then the likely scenario is that we are within
+            // a form dialog. Therefore emit a custom event requesting that the form be
+            // submitted...
+            on.emit(this.domNode, "onFormSubmit", {
+               bubbles: true,
+               cancelable: true
+            });
+         }
+         else 
+         {
             this.okButton.activate();
          }
       },
@@ -1034,11 +1168,11 @@ define(["dojo/_base/declare",
                var currHash = hashUtils.getHash();
                var updatedFormValue = {};
                this.doHashVarUpdate(currHash, true, updatedFormValue);
-               this.setValue(updatedFormValue);
+               this.setValue(updatedFormValue, true);
             }
             else
             {
-               this.setValue(this.value || {});
+               this.setValue(this.value || {}, true);
             }
             
             // Create an object that we're going to use to check off all the form controls as they report their
@@ -1104,7 +1238,11 @@ define(["dojo/_base/declare",
        */
       updateButtonPayloads: function alfresco_forms_Form__updateButtonPayloads(values) {
          array.forEach(this.additionalButtons, function(button) {
-            if (button._alfOriginalButtonPayload)
+            if (!button.updatePayload)
+            {
+               // No action required. Leave the payload as is.
+            }
+            else if (button._alfOriginalButtonPayload)
             {
                var payload = {};
                lang.mixin(payload, button._alfOriginalButtonPayload, values);
@@ -1156,8 +1294,9 @@ define(["dojo/_base/declare",
       /**
        * @instance
        * @param {object} values The values to set
+       * @param {boolean} initialization Indicates whether this call is part of the initialization of the containing form
        */
-      setValue: function alfresco_forms_Form__setValue(values) {
+      setValue: function alfresco_forms_Form__setValue(values, initialization) {
          this.alfLog("log", "Setting form values: ", values);
          if (values && values instanceof Object)
          {
@@ -1166,7 +1305,7 @@ define(["dojo/_base/declare",
                array.forEach(this._form.getChildren(), function(entry) {
                   if (typeof entry.updateFormControlValue === "function")
                   {
-                     entry.updateFormControlValue(values);
+                     entry.updateFormControlValue(values, initialization);
                   }
                   if (typeof entry.publishValue === "function")
                   {
@@ -1175,6 +1314,7 @@ define(["dojo/_base/declare",
                });
             }
             this.validate();
+
             this.updateButtonPayloads(this.getValue());
          }
       },
@@ -1226,10 +1366,20 @@ define(["dojo/_base/declare",
        * @since 1.0.39
        */
       getFormValueDependantOptions: function alfresco_forms_Form__getFormValueDependantOptions(payload) {
-         if (payload.publishTopic)
+         if (payload.publishTopic && payload.publishTopic !== topics.GET_FORM_VALUE_DEPENDENT_OPTIONS)
          {
             var currentValue = this.getValue();
+            
             var clonedPayload = lang.clone(payload);
+            if (clonedPayload.publishPayloadModifiers)
+            {
+               // Set the current value in order to support the "processInstanceTokens" modifier... 
+               this.value = currentValue;
+               this.processObject(clonedPayload.publishPayloadModifiers, clonedPayload);
+               delete clonedPayload.publishPayloadModifiers;
+            }
+
+            // Mix the current value into the payload...
             lang.mixin(clonedPayload, currentValue);
             this.alfServicePublish(payload.publishTopic, clonedPayload);
          }

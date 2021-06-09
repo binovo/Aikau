@@ -44,6 +44,12 @@ define(["module",
             ascending: TestCommon.getTestSelector(headerCellSelectors, "ascending.indicator", ["TABLE_VIEW_NAME_HEADING"]),
             descending: TestCommon.getTestSelector(headerCellSelectors, "descending.indicator", ["TABLE_VIEW_NAME_HEADING"]),
             label: TestCommon.getTestSelector(headerCellSelectors, "label", ["TABLE_VIEW_NAME_HEADING"])
+         },
+         description: {
+            indicators: TestCommon.getTestSelector(headerCellSelectors, "indicator", ["TABLE_VIEW_DESCRIPTION_HEADING"]),
+            ascending: TestCommon.getTestSelector(headerCellSelectors, "ascending.indicator", ["TABLE_VIEW_DESCRIPTION_HEADING"]),
+            descending: TestCommon.getTestSelector(headerCellSelectors, "descending.indicator", ["TABLE_VIEW_DESCRIPTION_HEADING"]),
+            label: TestCommon.getTestSelector(headerCellSelectors, "label", ["TABLE_VIEW_DESCRIPTION_HEADING"])
          }
       },
       sortMenu: {
@@ -108,11 +114,43 @@ define(["module",
       name: "AlfDocumentList Sorting Tests (sort via menu)",
       testPage: "/InfiniteScrollDocumentList?includeSortMenu=true",
 
+      // See AKU-1019
+      "Select and invert": function() {
+         // Select the first item...
+         return this.remote.findDisplayedByCssSelector("#TABLE_SELECTOR_ITEM_0")
+            .click()
+         .end()
+
+         // Check that the CSS matches the selected state...
+         .findByCssSelector("#TABLE_SELECTOR_ITEM_0.alfresco-lists-ItemSelectionMixin--selected")
+         .end()
+
+         // Open the selection drop-down...
+         .findByCssSelector("#ITEM_SELECTION .alfresco-menus-AlfMenuBarPopup__arrow")
+            .click()
+         .end()
+
+         // Select the "invert" menu item...
+         .findDisplayedByCssSelector("#ITEM_SELECTION_dropdown tr:nth-child(3) .dijitMenuItemLabel")
+            .click()
+         .end()
+
+         // Check the selected item is now deselected...
+         .findAllByCssSelector("#TABLE_SELECTOR_ITEM_0.alfresco-lists-ItemSelectionMixin--selected")
+            .then(function(elements) {
+               assert.lengthOf(elements, 0);
+            })
+         .end()
+
+         // Check that one of the other items is now selected...
+         .findByCssSelector("#TABLE_SELECTOR_ITEM_1.alfresco-lists-ItemSelectionMixin--selected");
+      },
+
       "Sort via menu": function() {
          // Open the sort menu...
-         return this.remote.findByCssSelector(selectors.sortMenu.label)
+         return this.remote.findDisplayedByCssSelector(selectors.sortMenu.label)
             .click()
-            .end()
+         .end()
 
          .clearLog()
 
@@ -123,7 +161,7 @@ define(["module",
          // Click the fourth sort item...
          .findDisplayedByCssSelector(selectors.sortItems.fourth)
             .click()
-            .end()
+         .end()
 
          .getLastPublish("ALF_DOCLIST_REQUEST_FINISHED")
 
@@ -175,10 +213,10 @@ define(["module",
          return this.remote.findByCssSelector(selectors.headerCells.name.label)
             .clearLog()
             .click()
-            .end()
+         .end()
 
          .getLastPublish("ALF_RETRIEVE_DOCUMENTS_REQUEST")
-            .getLastPublish("ALF_DOCLIST_REQUEST_FINISHED")
+         .getLastPublish("ALF_DOCLIST_REQUEST_FINISHED")
 
          .findAllByCssSelector(selectors.rows.all)
             .then(function(elements) {
@@ -194,7 +232,7 @@ define(["module",
          return this.remote.findByCssSelector(selectors.headerCells.name.label)
             .clearLog()
             .click()
-            .end()
+         .end()
 
          .getLastPublish("ALF_RETRIEVE_DOCUMENTS_REQUEST")
             .then(function(payload) {
@@ -210,7 +248,7 @@ define(["module",
          return this.remote.findByCssSelector(selectors.headerCells.name.label)
             .clearLog()
             .click()
-            .end()
+         .end()
 
          .getLastPublish("ALF_RETRIEVE_DOCUMENTS_REQUEST")
             .then(function(payload) {
@@ -220,6 +258,49 @@ define(["module",
          .getLastPublish("ALF_DOCLIST_REQUEST_FINISHED")
 
          .findDisplayedByCssSelector(selectors.headerCells.name.ascending);
+      }
+   });
+
+   defineSuite(module, {
+      name: "AlfDocumentList Sorting Tests (no hash, no infinite scroll)",
+      testPage: "/InfiniteScrollDocumentList?useHash=false&includeSortMenu=true",
+
+      "Sort on description, check menu is updated": function() {
+         return this.remote.findDisplayedByCssSelector(selectors.sortMenu.label)
+            .getVisibleText()
+            .then(function(text) {
+               assert.equal(text, "Name");
+            })
+         .end()
+
+         .findByCssSelector(selectors.headerCells.description.label)
+            .clearLog()
+            .click()
+         .end()
+
+         .getLastPublish("ALF_RETRIEVE_DOCUMENTS_REQUEST")
+         .getLastPublish("ALF_DOCLIST_REQUEST_FINISHED")
+
+         .findDisplayedByCssSelector(selectors.sortMenu.label)
+            .getVisibleText()
+            .then(function(text) {
+               assert.equal(text, "Description");
+            });
+      },
+
+      "Change sort order via header, check toggle is updated": function() {
+         return this.remote.findDisplayedByCssSelector("#SORT_TOGGLE img.alf-sort-ascending-icon")
+         .end()
+
+         .findByCssSelector(selectors.headerCells.description.label)
+            .clearLog()
+            .click()
+         .end()
+
+         .getLastPublish("ALF_RETRIEVE_DOCUMENTS_REQUEST")
+         .getLastPublish("ALF_DOCLIST_REQUEST_FINISHED")
+
+         .findDisplayedByCssSelector("#SORT_TOGGLE img.alf-sort-descending-icon");
       }
    });
 });

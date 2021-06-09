@@ -41,12 +41,10 @@ define(["dojo/_base/declare",
         "alfresco/core/CoreWidgetProcessing",
         "alfresco/renderers/_PublishPayloadMixin",
         "alfresco/lists/KeyboardNavigationSuppressionMixin",
-        "dojo/text!./templates/InlineEditProperty.html",
         "dojo/_base/lang",
         "dojo/_base/array",
-        "dojo/on",
+        "dojo/Deferred",
         "dojo/dom-class",
-        "dojo/html",
         "dojo/dom-attr",
         "dojo/keys",
         "dojo/_base/event",
@@ -56,7 +54,7 @@ define(["dojo/_base/declare",
         "alfresco/forms/controls/DojoValidationTextBox",
         "alfresco/forms/controls/HiddenValue"], 
         function(declare, Property, _OnDijitClickMixin, CoreWidgetProcessing, _PublishPayloadMixin, KeyboardNavigationSuppressionMixin,
-                 template, lang, array, on, domClass, html, domAttr, keys, event, query) {
+                 lang, array, Deferred, domClass, domAttr, keys, event, query) {
 
    return declare([Property, _OnDijitClickMixin, CoreWidgetProcessing, _PublishPayloadMixin, KeyboardNavigationSuppressionMixin], {
       
@@ -77,13 +75,6 @@ define(["dojo/_base/declare",
        * @default [{cssFile:"./css/InlineEditProperty.css"}]
        */
       cssRequirements: [{cssFile:"./css/InlineEditProperty.css"}],
-      
-      /**
-       * The HTML template to use for the widget.
-       * @instance
-       * @type {string}
-       */
-      templateString: template,
       
       /**
        * This is the message or message key that will be used for the cancel link text.
@@ -118,6 +109,22 @@ define(["dojo/_base/declare",
        * @type  {boolean}
        */
       editOnClickRenderedValue: true,
+
+      /**
+       * An optional array of topics to be subscribed to that can trigger editing. The typical use case is when
+       * another widget (a [PublishAcing]{@link module:alfresco/renderers/PublishAction} for example) is provided
+       * that when clicked will toggle editing of the property. The current caveat is that the payload published
+       * must be the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#currentItem} of this widget. This
+       * would be achieved by setting a 
+       * [publishPayloadType]{@link module:alfresco/renderers/_PublishPayloadMixin#publishPayloadType} of
+       * "CURRENT_ITEM" and for both widgets (the publisher and the subscriber) rendering the same item.
+       * 
+       * @instance
+       * @type {string[]}
+       * @default
+       * @since 1.0.72
+       */
+      editSubscriptionsTopics: null,
 
       /**
        * References the widget used for editing. Created by calling the 
@@ -199,6 +206,109 @@ define(["dojo/_base/declare",
       showOkCancelActions: true,
 
       /**
+       * The source file for the image to use to display when an item is being updated. This will
+       * typically only be displayed when an XHR request is made to retrieve the latest data for
+       * the item being edited.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.83
+       */
+      updateInProgressImgSrc: null,
+
+      /**
+       * The alt text label to use for the update in progress indicator.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.83
+       */
+      updateInProgressAltText: "inline-edit.update-in-progress.altText",
+
+      /**
+       * The alt text label to use for the update in progress indicator when the 
+       * [updateInProgressItemLabelProperty]{@link module:alfresco/renderers/InlineEditProperty#updateInProgressItemLabelProperty}
+       * does not match a value in the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#currentItem}.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.83
+       */
+      updateInProgressNoLabelAltText: "inline-edit.update-in-progress.no-label.altText",
+
+      /**
+       * The property to to retrieve from the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#currentItem}
+       * to insert into the [updateInProgressAltText]{@link module:alfresco/renderers/InlineEditProperty#updateInProgressAltText}
+       * that identifies the overall item being updated (rather than just the individual property that is being changed).
+       *
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.83
+       */
+      updateInProgressItemLabelProperty: "displayName",
+
+      /**
+       * Overrides [the inherited function]{@link module:aikau/core/BaseWidget#createWidgetDom}
+       * to construct the DOM for the widget using native browser capabilities.
+       *
+       * @instance
+       * @since 1.0.100
+       */
+      createWidgetDom: function alfresco_renderers_InlineEditProperty__createWidgetDom() {
+         // jshint maxstatements:false
+         this.domNode = document.createElement("span");
+         this.renderedValueClassArray.forEach(function(className) {
+            this.domNode.classList.add(className);
+         }, this);
+
+         this.domNode.classList.add("alfresco-renderers-InlineEditProperty");
+         
+         var labelSpan = document.createElement("span");
+         labelSpan.classList.add("label");
+         labelSpan.textContent = this.label;
+         this.domNode.appendChild(labelSpan);
+
+         this.renderedValueNode = document.createElement("span");
+         this.renderedValueNode.classList.add("inlineEditValue");
+         this.renderedValueClassArray.forEach(function(className) {
+            this.renderedValueNode.classList.add(className);
+         }, this);
+         this.renderedValueNode.setAttribute("tabindex", "0");
+         this.renderedValueNode.innerHTML = this.renderedValue;
+         this._attach(this.renderedValueNode, "onkeypress", lang.hitch(this, this.onKeyPress));
+         this._attach(this.renderedValueNode, "ondijitclick", lang.hitch(this, this.onClickRenderedValue));
+         this.domNode.appendChild(this.renderedValueNode);
+
+         this.editNode = document.createElement("span");
+         this.editNode.classList.add("editor");
+         this.editNode.classList.add("hidden");
+         this._attach(this.editNode, "onkeypress", lang.hitch(this, this.onValueEntryKeyPress));
+         this._attach(this.editNode, "onclick", lang.hitch(this, this.suppressFocusRequest));
+
+         this.formWidgetNode = document.createElement("span");
+         this.editNode.appendChild(this.formWidgetNode);
+         this.domNode.appendChild(this.editNode);
+
+         this.editIconNode = document.createElement("img");
+         this.editIconNode.classList.add("editIcon");
+         this.editIconNode.setAttribute("src", this.editIconImageSrc);
+         this.editIconNode.setAttribute("alt", this.editAltText);
+         this.editIconNode.setAttribute("title", this.editAltText);
+         this._attach(this.editIconNode, "ondijitclick", lang.hitch(this, this.onEditClick));
+         this.domNode.appendChild(this.editIconNode);
+
+         var progressNode = document.createElement("img");
+         progressNode.classList.add("alfresco-renderers-InlineEditProperty__progress");
+         progressNode.setAttribute("src", this.updateInProgressImgSrc);
+         progressNode.setAttribute("alt", this.updateInProgressAltText);
+         this.domNode.appendChild(progressNode);
+      },
+
+      /**
        * The topic to publish when a property edit should be persisted. For convenience it is assumed that document
        * or folder properties are being edited so this function is called whenever a 'publishTopic' attribute
        * has not been set. The defaults are to publish on the "ALF_CRUD_CREATE" topic which will publish a payload
@@ -231,6 +341,24 @@ define(["dojo/_base/declare",
       postMixInProperties: function alfresco_renderers_InlineEditProperty__postMixInProperties() {
          this.inherited(arguments);
          
+         // NOTE: We're just re-using the same progress indicator as used for forms validation here,
+         //       although this could be updated in the future to be something else...
+         if (!this.updateInProgressImgSrc)
+         {
+            this.updateInProgressImgSrc = require.toUrl("alfresco/forms/controls/css/images/ajax_anim.gif");
+         }
+         var itemLabel = lang.getObject(this.updateInProgressItemLabelProperty, false, this.currentItem);
+         if (itemLabel)
+         {
+            this.updateInProgressAltText = this.message(this.updateInProgressAltText, {
+               0: itemLabel
+            });
+         }
+         else
+         {
+            this.updateInProgressAltText = this.message(this.updateInProgressNoLabelAltText);
+         }
+
          // If no topic has been provided then assume the default behaviour of editing document/folder properties
          if (!this.publishTopic)
          {
@@ -287,6 +415,19 @@ define(["dojo/_base/declare",
                domClass.add(this.editIconNode, "disabled");
                this._disableEdit = true;
             }
+         }
+
+         // See AKU-997...
+         if (this.editSubscriptionsTopics)
+         {
+            array.forEach(this.editSubscriptionsTopics, lang.hitch(this, function(topic) {
+               this.alfSubscribe(topic, lang.hitch(this, function(payload) {
+                  if (payload === this.currentItem)
+                  {
+                     this.onEditClick();
+                  }
+               }));
+            }));
          }
       },
 
@@ -433,7 +574,18 @@ define(["dojo/_base/declare",
             this.suppressContainerKeyboardNavigation(true);
             var formWidget = this.getFormWidget();
             var o = {};
-            lang.setObject(this.postParam, this.decodeHTML(this.originalRenderedValue), o);
+            var formValue = this.originalRenderedValue;
+            if (formValue !== null && 
+                typeof formValue !== "undefined" && 
+                typeof formValue.toString === "function")
+            {
+               formValue = this.decodeHTML(formValue.toString());
+            }
+            else
+            {
+               formValue = "";
+            }
+            lang.setObject(this.postParam, formValue, o);
             formWidget.setValue(o);
             domClass.toggle(this.renderedValueNode, "hidden");
             domClass.toggle(this.editNode, "hidden");
@@ -447,6 +599,8 @@ define(["dojo/_base/declare",
        */
       onSave: function alfresco_renderers_InlineEditProperty__onSave(formPayload) {
          /*jshint unused:false*/
+         domClass.add(this.domNode, "alfresco-renderers-InlineEditProperty--updating");
+
          var responseTopic = this.generateUuid();
          var payload = lang.clone(this.getGeneratedPayload(false, null));
          payload.alfResponseTopic = responseTopic;
@@ -478,23 +632,70 @@ define(["dojo/_base/declare",
          this.alfUnsubscribeSaveHandles([this._saveSuccessHandle, this._saveFailureHandle]);
 
          this.alfLog("log", "Property '" + this.propertyToRender + "' successfully updated for node: ", this.currentItem);
-         this.originalRenderedValue = this.encodeHTML(this.getFormWidget().getValue()[this.postParam]);
-         this.renderedValue = this.mapValueToDisplayValue(this.originalRenderedValue);
+         
+         var formValue = this.getFormWidget().getValue()[this.postParam];
+         if (formValue !== null && 
+             typeof formValue !== "undefined" && 
+             typeof formValue.toString === "function")
+         {
+            this.originalRenderedValue = this.encodeHTML(formValue.toString());
+         }
+         else
+         {
+            this.originalRenderedValue = "";
+         }
+         
+         this.renderedValue = this.mapValueToDisplayValue(formValue);
 
          // If requested, update the currentItem with the updated value. This is done in the
          // case where the currentItem might be subsequently used elsewhere (e.g. in a 
          // form, etc)
          if (this.refreshCurrentItem === true)
          {
-            lang.setObject(this.propertyToRender, this.originalRenderedValue, this.currentItem);
+            this.updateCurrentItem(payload).then(lang.hitch(this, this.reRenderProperty));
          }
-         
+         else
+         {
+            this.reRenderProperty();
+         }
+      },
+
+      /**
+       * This function is called from [onSaveSuccess]{@link module:alfresco/renderers/InlineEditProperty#onSaveSuccess}
+       * to re-render the property after an edit has successfully been saved.
+       * 
+       * @instance
+       * @param {object} payload The success payload
+       * @since 1.0.83
+       */
+      reRenderProperty: function alfresco_renderers_InlineEditProperty__reRenderProperty() {
          this.renderedValue = this.generateRendering(this.renderedValue);
-         html.set(this.renderedValueNode, this.renderedValue);
+         this.renderedValueNode.textContent = this.renderedValue;
          domClass.remove(this.renderedValueNode, "hidden");
          domClass.add(this.editNode, "hidden");
          this.updateCssClasses();
          this.renderedValueNode.focus();
+
+         domClass.remove(this.domNode, "alfresco-renderers-InlineEditProperty--updating");
+      },
+
+      /**
+       * This function is called from [onSaveSuccess]{@link module:alfresco/renderers/InlineEditProperty#onSaveSuccess}
+       * when [refreshCurrentItem]{@link module:alfresco/renderers/InlineEditProperty#refreshCurrentItem} is true
+       * and allows the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#currentItem} to be updated
+       * with the latest data following the update.
+       * 
+       * @instance
+       * @param {object} payload The success payload
+       * @returns {object} A promise of the udpate that by default is immediately resolved.
+       * @since 1.0.83
+       * @overridable
+       */
+      updateCurrentItem: function alfresco_renderers_InlineEditProperty__updateCurrentItem(/*jshint unused:false*/ payload) {
+         var d = new Deferred();
+         lang.setObject(this.propertyToRender, this.originalRenderedValue, this.currentItem);
+         d.resolve();
+         return d;
       },
 
       /**

@@ -20,25 +20,30 @@
 /**
  * 
  * @module alfresco/lists/views/layouts/HeaderCell
- * @extends external:dijit/_WidgetBase
- * @mixes external:dojo/_TemplatedMixin
- * @mixes module:alfresco/core/Core
+ * @extends module:aikau/core/BaseWidget
  * @author Dave Draper
  */
 define(["dojo/_base/declare",
-        "dijit/_WidgetBase", 
-        "dijit/_TemplatedMixin",
-        "dojo/text!./templates/HeaderCell.html",
-        "alfresco/core/Core",
+        "aikau/core/BaseWidget",
         "alfresco/core/topics",
         "alfresco/util/hashUtils",
         "dojo/_base/lang",
         "dojo/dom-class",
         "dojo/query",
         "dojo/dom-attr"], 
-        function(declare, _WidgetBase, _TemplatedMixin, template, AlfCore, topics, hashUtils, lang, domClass, query, domAttr) {
+        function(declare, BaseWidget, topics, hashUtils, lang, domClass, query, domAttr) {
 
-   return declare([_WidgetBase, _TemplatedMixin, AlfCore], {
+   return declare([BaseWidget], {
+
+      /**
+       * An array of the i18n files to use with this widget.
+       *
+       * @instance
+       * @type {object[]}
+       * @default [{i18nFile: "./i18n/HeaderCell.properties"}]
+       * @since 1.0.77
+       */
+      i18nRequirements: [{i18nFile: "./i18n/HeaderCell.properties"}],
 
       /**
        * An array of the CSS files to use with this widget.
@@ -48,14 +53,6 @@ define(["dojo/_base/declare",
        * @default [{cssFile:"./css/HeaderCell.css"}]
        */
       cssRequirements: [{cssFile:"./css/HeaderCell.css"}],
-
-      /**
-       * The HTML template to use for the widget.
-       * 
-       * @instance
-       * @type {String}
-       */
-      templateString: template,
 
       /**
        * Optional accessibility scope.
@@ -76,7 +73,26 @@ define(["dojo/_base/declare",
       sortable: false,
 
       /**
-       * Optional alt text for the sort ascending icon
+       * @event sortRequestTopic
+       * @instance
+       * @type {string}
+       * @default [SORT_LIST]{@link module:alfresco/core/topics#SORT_LIST}
+       * @since 1.0.102
+       */
+      sortRequestTopic: topics.SORT_LIST,
+
+      /**
+       * @event sortFieldSelectionTopic
+       * @instance
+       * @type {string}
+       * @default [UPDATE_LIST_SORT_FIELD]{@link module:alfresco/core/topics#UPDATE_LIST_SORT_FIELD}
+       * @since 1.0.102
+       */
+      sortFieldSelectionTopic: topics.UPDATE_LIST_SORT_FIELD,
+
+      /**
+       * Optional alt text for the sort ascending icon. An optional {0} token can be provided to
+       * insert the [label]{@link module:alfresco/lists/views/layouts/HeaderCell#label}
        *
        * @instance
        * @type {string}
@@ -85,7 +101,8 @@ define(["dojo/_base/declare",
       sortAscAlt: null,
 
       /**
-       * Optional alt text for the sort descending icon
+       * Optional alt text for the sort descending icon. An optional {0} token can be provided to
+       * insert the [label]{@link module:alfresco/lists/views/layouts/HeaderCell#label}.
        *
        * @instance
        * @type {string}
@@ -123,6 +140,16 @@ define(["dojo/_base/declare",
       toolTipMsg: null,
 
       /**
+       * A transparent image to use (this will allow the background image to show through).
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.77
+       */
+      transparentImageUrl: null,
+
+      /**
        * Indicate whether or not this cell is currently being used as the sort field.
        *
        * @instance
@@ -143,6 +170,35 @@ define(["dojo/_base/declare",
       useHash: false,
 
       /**
+       * Overrides [the inherited function]{@link module:aikau/core/BaseWidget#createWidgetDom}
+       * to construct the DOM for the widget using native browser capabilities.
+       *
+       * @instance
+       * @since 1.0.101
+       */
+      createWidgetDom: function alfresco_lists_views_layouts_Row__createWidgetDom() {
+         this.containerNode = this.domNode = document.createElement("th");
+         this.domNode.classList.add("alfresco-lists-views-layouts-HeaderCell");
+         this.domNode.setAttribute("tabindex", "0");
+         this._attach(this.domNode, "ondijitclick", lang.hitch(this, this.onSortClick));
+
+         this.labelNode = document.createElement("span");
+         this.labelNode.classList.add("label");
+         this.labelNode.textContent = this.label;
+         this.domNode.appendChild(this.labelNode);
+
+         this.ascendingSortNode = document.createElement("img");
+         this.ascendingSortNode.classList.add("ascendingSort");
+         this.ascendingSortNode.setAttribute("src", this.transparentImageUrl);
+         this.domNode.appendChild(this.ascendingSortNode);
+
+         this.descendingSortNode = document.createElement("img");
+         this.descendingSortNode.classList.add("descendingSort");
+         this.descendingSortNode.setAttribute("src", this.transparentImageUrl);
+         this.domNode.appendChild(this.descendingSortNode);
+      },
+
+      /**
        * @instance
        */
       postMixInProperties: function alfresco_lists_views_layouts_HeaderCell__postMixInProperties() {
@@ -151,14 +207,27 @@ define(["dojo/_base/declare",
             this.label = this.message(this.label);
          }
          this.currentItem = {};
+         this.transparentImageUrl = require.toUrl("alfresco/menus/css/images/transparent-20.png");
+
+         // Set up the alt text for the sort icons...
+         if (!this.sortAscAlt)
+         {
+            this.sortAscAlt = this.label ? "header.cell.sort.ascending.alt.text" : "header.cell.sort.ascending.alt.text.nolabel";
+         }
+         if (!this.sortDescAlt)
+         {
+            this.sortDescAlt = this.label ? "header.cell.sort.descending.alt.text" : "header.cell.sort.descending.alt.text.nolabel";  
+         }
+         this.sortAscAlt = this.message(this.sortAscAlt, {"0": this.label});
+         this.sortDescAlt = this.message(this.sortDescAlt, {"0": this.label});
       },
 
       /**
        * Calls [processWidgets]{@link module:alfresco/core/Core#processWidgets}
        * 
        * @instance postCreate
-       * @listens module:alfresco/core/topics#SORT_LIST
-       * @listens module:alfresco/core/topics#UPDATE_LIST_SORT_FIELD
+       * @listens module:alfresco/lists/views/layouts/HeaderCell#sortRequestTopic
+       * @listens module:alfresco/lists/views/layouts/HeaderCell#sortFieldSelectionTopic
        */
       postCreate: function alfresco_lists_views_layouts_HeaderCell__postCreate() {
          if (this.useHash && this.sortable)
@@ -171,8 +240,8 @@ define(["dojo/_base/declare",
             }
          }
 
-         this.alfSubscribe(topics.SORT_LIST, lang.hitch(this, this.onExternalSortRequest));
-         this.alfSubscribe(topics.UPDATE_LIST_SORT_FIELD, lang.hitch(this, this.onExternalSortRequest));
+         this.alfSubscribe(this.sortRequestTopic, lang.hitch(this, this.onExternalSortRequest));
+         this.alfSubscribe(this.sortFieldSelectionTopic, lang.hitch(this, this.onExternalSortRequest));
 
          domAttr.set(this.ascendingSortNode, "alt", this.sortAscAlt ? this.sortAscAlt : "");
          domAttr.set(this.descendingSortNode, "alt", this.sortDescAlt ? this.sortDescAlt : "");
@@ -247,13 +316,14 @@ define(["dojo/_base/declare",
 
       /**
        * @instance
-       * @fires module:alfresco/core/topics#SORT_LIST
+       * @fires module:alfresco/lists/views/layouts/HeaderCell#sortRequestTopic
        */
       publishSortRequest: function alfresco_lists_views_layouts_HeaderCell__publishSortRequest() {
-         this.alfPublish(topics.SORT_LIST, {
+         this.alfPublish(this.sortRequestTopic, {
             direction: (this.sortedAscending) ? "ascending" : "descending",
             value: this.sortValue,
-            requester: this
+            requester: this,
+            label: this.label
          });
       },
 

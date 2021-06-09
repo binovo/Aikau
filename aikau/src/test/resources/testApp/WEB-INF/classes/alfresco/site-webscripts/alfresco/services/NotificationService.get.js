@@ -10,7 +10,12 @@ model.jsonModel = {
                }
             }
       },
-      "alfresco/services/NotificationService",
+      {
+         name: "alfresco/services/NotificationService",
+         config: {
+            showProgressIndicator: true
+         }
+      },
       "alfresco/services/DialogService",
       "alfresco/services/ErrorReporter"
    ],
@@ -194,6 +199,22 @@ model.jsonModel = {
                   }
                }
             }
+         }
+      },
+      {
+         name: "alfresco/buttons/AlfButton",
+         id: "ADD_ACTIVITY_BUTTON",
+         config: {
+            label: "Add an in-progress activity",
+            publishTopic: "ALF_PROGRESS_INDICATOR_ADD_ACTIVITY"
+         }
+      },
+      {
+         name: "alfresco/buttons/AlfButton",
+         id: "REMOVE_ACTIVITY_BUTTON",
+         config: {
+            label: "Remove an in-progress activity",
+            publishTopic: "ALF_PROGRESS_INDICATOR_REMOVE_ACTIVITY"
          }
       },
       {

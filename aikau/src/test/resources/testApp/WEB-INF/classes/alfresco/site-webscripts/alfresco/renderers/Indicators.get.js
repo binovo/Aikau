@@ -39,7 +39,7 @@ model.jsonModel = {
                   {
                      "id": "cloud-indirect-sync",
                      "index": "90",
-                     "icon": "cloud-indirect-sync-16.png",
+                     "icon": "not-in-white-list-16.png",
                      "label": "status.cloud-indirect-sync",
                      "overrides": ["exif"],
                      "action": "onCloudIndirectSyncIndicatorAction"
@@ -95,6 +95,31 @@ model.jsonModel = {
          }
       },
       {
+         id: "INDICATORS4",
+         name: "alfresco/renderers/Indicators",
+         config: {
+            supportActions: false,
+            currentItem: {
+               node: {
+                  nodeRef: "some://dummy/node",
+                  properties: {
+                     name: "Test"
+                  }
+               },
+               indicators: [
+                  {
+                     "id": "bob",
+                     "index": "10",
+                     "icon": "locked-16.png",
+                     "label": "Not translated",
+                     "action": "custom",
+                     "publishTopic": "CUSTOM_ACTION_2",
+                     "publishPayload": {}
+                  }
+               ]
+            }
+         }
+      },{
          name: "alfresco/logging/DebugLog"
       }
    ]

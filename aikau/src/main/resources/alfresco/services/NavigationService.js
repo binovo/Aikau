@@ -29,6 +29,7 @@
 define(["dojo/_base/declare",
         "module",
         "alfresco/core/ObjectTypeUtils",
+        "alfresco/core/topics",
         "alfresco/enums/urlTypes",
         "alfresco/services/BaseService",
         "alfresco/services/_NavigationServiceTopicMixin",
@@ -36,8 +37,9 @@ define(["dojo/_base/declare",
         "alfresco/util/urlUtils",
         "dojo/_base/array",
         "dojo/_base/lang",
+        "dojo/Deferred",
         "dojo/dom-construct"],
-        function(declare, module, ObjectTypeUtils, urlTypes, BaseService, _NavigationServiceTopicMixin, hashUtils, urlUtils, array, lang, domConstruct) {
+        function(declare, module, ObjectTypeUtils, topics, urlTypes, BaseService, _NavigationServiceTopicMixin, hashUtils, urlUtils, array, lang, Deferred, domConstruct) {
 
    return declare([BaseService, _NavigationServiceTopicMixin], {
 
@@ -172,7 +174,26 @@ define(["dojo/_base/declare",
                }
                else if (!data.target || data.target === this.currentTarget)
                {
-                  window.location = url;
+                  // Make a good attempt at ensuring that we're not trying to go back to the same page
+                  // This has been added to ensure that the progress indicator is not shown when entering
+                  // new search terms in the SearchBox when already on the Search page (in Share)... 
+                  // This may require further enhancement...
+                  var hashIndex = url.indexOf("#");
+                  if ((hashIndex !== -1 && url.substring(0, hashIndex) === window.location.pathname) ||
+                      (url === window.location.pathname))
+                  {
+                     window.location = url;
+                  }
+                  else if (url.indexOf("?a=true") !== -1 || 
+                           url.indexOf("&a=true") !== -1)
+                  {
+                     window.location = url;
+                  }
+                  else
+                  {
+                     this.alfServicePublish(topics.PROGRESS_INDICATOR_ADD_ACTIVITY);
+                     window.location = url;
+                  }
                }
                else if (data.target === this.newTarget)
                {
@@ -228,7 +249,15 @@ define(["dojo/_base/declare",
                }
             }
             domConstruct.place(form, document.body);
-            form.submit();
+            if (!data.target || data.target === this.currentTarget)
+            {
+               this.alfServicePublish(topics.PROGRESS_INDICATOR_ADD_ACTIVITY);
+               form.submit();
+            }
+            else
+            {
+               form.submit();
+            }
          }
       },
 
@@ -242,6 +271,7 @@ define(["dojo/_base/declare",
        */
       reloadPage: function alfresco_services_NavigationService__reloadPage(data) {
          this.alfLog("log", "Page reload request received:", data);
+         this.alfServicePublish(topics.PROGRESS_INDICATOR_ADD_ACTIVITY);
          window.location.reload(true);
       }
    });

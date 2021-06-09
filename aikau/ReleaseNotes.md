@@ -1,8 +1,13 @@
-Aikau 1.0.66 Release Notes
+Aikau 1.0.105 Release Notes
 ===
 
-Previous deprecations:
+IMPORTANT
 ---
+From version 1.0.96 onwards there is a new `aikau` package provided. The code in this package is intended to form the basis of a 1.1 version of Aikau (which will be the first release to contain breaking changes). The contents of this package are **not** subject to the same backwards compatibility rules as the `alfresco` package. Instead this will be a collaboration space where code can be changed with breaking changes up until the point where 1.1 is released. You should not use anything from the `aikau` package in production until 1.1 is released. There is no date yet determined for the 1.1 release, 1.0.x releases will continue as always as we prepare for it.
+
+Current deprecations:
+---
+* alfresco/dialogs/AlfFormDialog                                 (use alfresco/services/DialogService)
 * alfresco/renderers/Thumbnail.js
   * onNodePromiseResolved                                        (configure usePreviewService to be true)
   * onLoadNode                                                   (configure usePreviewService to be true)
@@ -47,6 +52,309 @@ Previous deprecations:
 
 Resolved issues:
 ---
+1.0.105:
+* [SHA-2164](https://issues.alfresco.com/jira/browse/SHA-2164)      - Salesforce Connector: DnD multiple files in Firefox
+* [SHA-2177](https://issues.alfresco.com/jira/browse/SHA-2177)      - Update localisation of short date format
+* [#1361](https://github.com/Alfresco/Aikau/pull/1361)              - Make hard-coded topics for sort requests / field selection configurable 
+* [#1362](https://github.com/Alfresco/Aikau/pull/1362)              - Add destroyOnHide for DialogService pubSub payloads 
+
+
+1.0.104:
+* [RM-6273](https://issues.alfresco.com/jira/browse/RM-6273)        - Make DateTextBox use date format specified in properties files
+* [MNT-19095](https://issues.alfresco.com/jira/browse/MNT-19095)    - Update copyright year in footers to 2018
+* [#1396](https://github.com/Alfresco/Aikau/pull/1396)              - JSDoc Dependency upgrade from 2.0.0 to 2.2.1 
+
+1.0.103:
+* [RM-5774](https://issues.alfresco.com/jira/browse/RM-5774)         - Add unit tests for various changes using encodeHTML - mirrored by [#1388](https://github.com/Alfresco/Aikau/issues/1388)
+* [#1387](https://github.com/Alfresco/Aikau/issues/1387)             - Add HTML encoding to the label of AlfBreadcrumb
+* [#1389](https://github.com/Alfresco/Aikau/issues/1389)             - Add HTML encoding to the label of AlfButton
+* [#1390](https://github.com/Alfresco/Aikau/issues/1390)             - Add HTML encoding to the caption of AlfListView
+
+1.0.102:
+* [AKU-1171](https://issues.alfresco.com/jira/browse/AKU-1171)       - Generated thumbnails in advanced search are not shown 
+* [AKU-1170](https://issues.alfresco.com/jira/browse/AKU-1170)       - Change popup menu item image role from "presentation" to "button".
+* [AKU-1169](https://issues.alfresco.com/jira/browse/AKU-1169)       - Switch WebScripts path to use noauth instead of service
+* [AKU-1168](https://issues.alfresco.com/jira/browse/AKU-1168)       - Change role of menu item icons from "presentation" to "button"
+* [AKU-1166](https://issues.alfresco.com/jira/browse/AKU-1166)       - Add support for title on Property
+* [AKU-1165](https://issues.alfresco.com/jira/browse/AKU-1165)       - Cell width handling (non-strings with units)
+* [AKU-1164](https://issues.alfresco.com/jira/browse/AKU-1164)       - Defensive code around border thickness calculation
+* [AKU-1162](https://issues.alfresco.com/jira/browse/AKU-1162)       - Chrome rendering issue on dialog footer placement
+* [AKU-1156](https://issues.alfresco.com/jira/browse/AKU-1156)       - Remove default for STH max analyzed chars
+* [SHA-2000](https://issues.alfresco.com/jira/browse/SHA-2000)       - UA update for Live Search in Site. Update labels.
+* [#1350](https://github.com/Alfresco/Aikau/issues/1350)             - From [AFaust](https://github.com/AFaust): Added missing maps for ES6 Promise shim
+* [#1353](https://github.com/Alfresco/Aikau/pull/1353)               - From [AFaust](https://github.com/AFaust): Improve DebugLog data sanitation
+* [#1351](https://github.com/Alfresco/Aikau/pull/1351)               - ALL LANG: Localisation bundles updated
+* [#1346](https://github.com/Alfresco/Aikau/pull/1346)               - From [AFaust](https://github.com/AFaust): Allow widgetsForControl configuration in SitePicker
+* [#1345](https://github.com/Alfresco/Aikau/pull/1345)               - From [AFaust](https://github.com/AFaust): Add value delimiter handling to Picker
+
+1.0.101:
+* [AKU-1148](https://issues.alfresco.com/jira/browse/AKU-1148)         - Converted renderers and layout modules to create DOM natively
+* [AKU-1151](https://issues.alfresco.com/jira/browse/AKU-1151)         - Improve performance enhanced view rendering completion
+* [AKU-1152](https://issues.alfresco.com/jira/browse/AKU-1152)         - Support multiple classes assigned to renderedValueClass
+* [AKU-1153](https://issues.alfresco.com/jira/browse/AKU-1153)         - Include details of 3rd party libs in readme
+* [AKU-1154](https://issues.alfresco.com/jira/browse/AKU-1154)         - Update site creation failure error message
+* [AKU-1155](https://issues.alfresco.com/jira/browse/AKU-1155)         - Fix InlineEditProperty re-rendering bug
+
+1.0.100:
+* [AKU-878](https://issues.alfresco.com/jira/browse/AKU-878)         - Performance test page added
+* [AKU-1138](https://issues.alfresco.com/jira/browse/AKU-1138)       - Prevent PDF.js preview horizontal scrollbar clipping
+* [AKU-1139](https://issues.alfresco.com/jira/browse/AKU-1139)       - Prevent horizontal scrollar showing on downlad as zip dialog
+* [AKU-1140](https://issues.alfresco.com/jira/browse/AKU-1140)       - Scoped Toggle renderer fix
+* [AKU-1141](https://issues.alfresco.com/jira/browse/AKU-1141)       - Ensure all search thumbnails have correct tooltip
+* [AKU-1143](https://issues.alfresco.com/jira/browse/AKU-1143)       - Add caching to temporalUtils
+* [AKU-1145](https://issues.alfresco.com/jira/browse/AKU-1145)       - Added BaseWidget for reducing applyAttributes overhead
+* [AKU-1146](https://issues.alfresco.com/jira/browse/AKU-1146)       - Add debug mode check within alfLog
+* [AKU-1147](https://issues.alfresco.com/jira/browse/AKU-1147)       - Define pattern for avoiding TemplatedMixin overhead
+* [AKU-1149](https://issues.alfresco.com/jira/browse/AKU-1149)       - Improvements to ChildProcessing module
+* [AKU-1150](https://issues.alfresco.com/jira/browse/AKU-1150)       - Improve legacy edit site resource loading
+
+1.0.99:
+* [AKU-1133](https://issues.alfresco.com/jira/browse/AKU-1133)       - Improve rendering of Create Site dialog opening
+* [AKU-1134](https://issues.alfresco.com/jira/browse/AKU-1134)       - Copyright year update
+* [AKU-1135](https://issues.alfresco.com/jira/browse/AKU-1135)       - Improve SearchService configuration options for search term highlighting
+* [AKU-1136](https://issues.alfresco.com/jira/browse/AKU-1136)       - Improve MoreInfo widget styling
+* [AKU-1137](https://issues.alfresco.com/jira/browse/AKU-1137)       - Impove create site validation display
+
+1.0.98:
+* [AKU-1130](https://issues.alfresco.com/jira/browse/AKU-1130)       - Improve create/edit site customization options through configuration
+* [AKU-1131](https://issues.alfresco.com/jira/browse/AKU-1131)       - Create Link label updated
+* [AKU-1132](https://issues.alfresco.com/jira/browse/AKU-1132)       - Ensure site is created on first click of button
+
+
+1.0.97:
+* [AKU-1108](https://issues.alfresco.com/jira/browse/AKU-1108)       - Ensure sites are favourited when created
+* [AKU-1130](https://issues.alfresco.com/jira/browse/AKU-1130)       - Improve create/edit site customization options through configuration
+
+1.0.96:
+* [AKU-1111](https://issues.alfresco.com/jira/browse/AKU-1111)       - Update AlfSearchList to support additional query parameters
+* [AKU-1112](https://issues.alfresco.com/jira/browse/AKU-1112)       - Update FilePicker to properly support required state
+* [AKU-1113](https://issues.alfresco.com/jira/browse/AKU-1113)       - Upgrade of CodeMirror to 5.20.2
+* [AKU-1125](https://issues.alfresco.com/jira/browse/AKU-1125)       - Update AlfSelectDocumentListItems to disable correctly
+* [AKU-1127](https://issues.alfresco.com/jira/browse/AKU-1127)       - Increate Create Site dialog height to prevent jumping on validation
+* [AKU-1128](https://issues.alfresco.com/jira/browse/AKU-1128)       - Ensure FilteringSelect and ComboBox only request initial options once
+* [AKU-1129](https://issues.alfresco.com/jira/browse/AKU-1129)       - Add support for showing all option in FilteringSelect and ComboBox when drop-down opened
+
+1.0.95:
+* [AKU-1108](https://issues.alfresco.com/jira/browse/AKU-1108)       - Ensure new sites are favourited (Firefox fix)
+* [AKU-1114](https://issues.alfresco.com/jira/browse/AKU-1114)       - Remove unicode STH delineation from Thumbnail title
+* [AKU-1115](https://issues.alfresco.com/jira/browse/AKU-1115)       - Redirect to user dashboard on request to join moderated site
+* [AKU-1116](https://issues.alfresco.com/jira/browse/AKU-1116)       - Add support for enter key completing dialog forms (within field)
+* [AKU-1117](https://issues.alfresco.com/jira/browse/AKU-1117)       - Update site creation error messages
+* [AKU-1118](https://issues.alfresco.com/jira/browse/AKU-1118)       - Support PathTree updates with no "/" prefix
+* [AKU-1119](https://issues.alfresco.com/jira/browse/AKU-1119)       - Improve SiteService preset configuration options
+* [AKU-1121](https://issues.alfresco.com/jira/browse/AKU-1121)       - Debounce form validation styling changes
+* [AKU-1123](https://issues.alfresco.com/jira/browse/AKU-1123)       - OSX fix for dialog form field highlighting clipping
+
+1.0.94:
+* [AKU-1107](https://issues.alfresco.com/jira/browse/AKU-1107)       - Ensure spaces are trimmed in site data
+* [AKU-1108](https://issues.alfresco.com/jira/browse/AKU-1108)       - Ensure new sites are favourited
+* [AKU-1109](https://issues.alfresco.com/jira/browse/AKU-1109)       - Fix Cloud Sync action issues
+
+1.0.93:
+* [AKU-1101](https://issues.alfresco.com/jira/browse/AKU-1101)       - Support for click on Row
+* [AKU-1105](https://issues.alfresco.com/jira/browse/AKU-1105)       - Remove unicode chars from MoreInfo on search
+* [AKU-1106](https://issues.alfresco.com/jira/browse/AKU-1106)       - Ensure edit site redirects to correct URL
+
+1.0.92:
+* [AKU-1097](https://issues.alfresco.com/jira/browse/AKU-1097)       - Updates for search term highlighting
+* [AKU-1100](https://issues.alfresco.com/jira/browse/AKU-1100)       - DateTextBox keyup validation fix
+
+1.0.91:
+* [AKU-1092](https://issues.alfresco.com/jira/browse/AKU-1092)       - Improvements to site edit/creation validation
+* [AKU-1094](https://issues.alfresco.com/jira/browse/AKU-1094)       - Updated error message for Copy/Move failures
+* [AKU-1098](https://issues.alfresco.com/jira/browse/AKU-1098)       - Hide list error messages when loading
+* [AKU-1099](https://issues.alfresco.com/jira/browse/AKU-1099)       - Fixed validationTopic backwards compatibility
+
+1.0.90:
+* [AKU-1093](https://issues.alfresco.com/jira/browse/AKU-1093)       - Fixed bug with inverting selection on AlfGalleryView
+* [AKU-1094](https://issues.alfresco.com/jira/browse/AKU-1094)       - Updated error message for Copy/Move failures
+* [AKU-1095](https://issues.alfresco.com/jira/browse/AKU-1095)       - Ensure copy/move dialog model is properly cloned
+* [AKU-1096](https://issues.alfresco.com/jira/browse/AKU-1096)       - Fixed AlfMenuBarToggle URL hash updating
+
+1.0.89:
+* [AKU-1092](https://issues.alfresco.com/jira/browse/AKU-1092)       - Updated SiteService to improve site creation and editing
+* Added MarkdownWithPreviewEditor widget
+* Improvements to Document Library import lib
+
+1.0.88:
+* [AKU-1090](https://issues.alfresco.com/jira/browse/AKU-1090)       - Fix copy/move partial success messages
+* [AKU-1091](https://issues.alfresco.com/jira/browse/AKU-1091)       - AlfSearchResult styling update
+
+1.0.87:
+* [AKU-1087](https://issues.alfresco.com/jira/browse/AKU-1087)       - Update Property to support highlighting
+* [AKU-1088](https://issues.alfresco.com/jira/browse/AKU-1088)       - Form setValueTopic scope fix
+
+1.0.86:
+* [AKU-1036](https://issues.alfresco.com/jira/browse/AKU-1036)       - Added a User renderer
+* [AKU-1014](https://issues.alfresco.com/jira/browse/AKU-1014)       - More FormsRuntimeService updates
+
+1.0.85:
+* [AKU-1075](https://issues.alfresco.com/jira/browse/AKU-1075)       - Improve dialog title handling on copy/move action
+* [AKU-1084](https://issues.alfresco.com/jira/browse/AKU-1084)       - Ensure ContainerPicker selects recent sites on display
+* [AKU-1085](https://issues.alfresco.com/jira/browse/AKU-1085)       - Fix IE10/11 & Edge middle click, right click handling
+* [AKU-1086](https://issues.alfresco.com/jira/browse/AKU-1086)       - Support middle click, ctrl click open in new tab on menu items
+
+1.0.84:
+* [AKU-1072](https://issues.alfresco.com/jira/browse/AKU-1072)       - Support hiding form control validation indicators
+* [AKU-1076](https://issues.alfresco.com/jira/browse/AKU-1076)       - Ensure filteringTopics does not need to be configured on AlfFilteredList
+* [AKU-1077](https://issues.alfresco.com/jira/browse/AKU-1077)       - Support label maps on AlfFilteredList summary
+* [AKU-1079](https://issues.alfresco.com/jira/browse/AKU-1079)       - Support copy/paste value update trigger in form controls
+* [AKU-1080](https://issues.alfresco.com/jira/browse/AKU-1080)       - Clone models for dialogs
+* [AKU-1081](https://issues.alfresco.com/jira/browse/AKU-1081)       - Support mix-in values on FormsRuntimeService requests
+* [AKU-1082](https://issues.alfresco.com/jira/browse/AKU-1082)       - Ensure DateTextBox value change publication is correct
+* [AKU-1083](https://issues.alfresco.com/jira/browse/AKU-1083)       - Support empty value options for Select form control
+
+1.0.83:
+* [AKU-1053](https://issues.alfresco.com/jira/browse/AKU-1053)       - Support for grouped form rules
+* [AKU-1054](https://issues.alfresco.com/jira/browse/AKU-1054)       - Ensure expanded panels remain expanded on grid resize
+* [AKU-1069](https://issues.alfresco.com/jira/browse/AKU-1069)       - Full metadata refresh on InlineEditPropertyLink
+* [AKU-1071](https://issues.alfresco.com/jira/browse/AKU-1071)       - PushButton in form dialog layout fix
+
+1.0.82:
+* [AKU-1061](https://issues.alfresco.com/jira/browse/AKU-1061)       - Update bulk action filtering to include file type
+* [AKU-1063](https://issues.alfresco.com/jira/browse/AKU-1063)       - Ensure that SelectedItemStateMixin publishes empty array for zero-item selection
+* [AKU-1064](https://issues.alfresco.com/jira/browse/AKU-1064)       - Disable AlfSelectDocumentListItems when no list items are available
+* [AKU-1067](https://issues.alfresco.com/jira/browse/AKU-1067)       - Update GalleryThumbnail to support selection and inverting selection
+* [AKU-1068](https://issues.alfresco.com/jira/browse/AKU-1068)       - Update copy/move action messages
+* [AKU-1070](https://issues.alfresco.com/jira/browse/AKU-1070)       - Support added/removed values for form controls
+
+1.0.81:
+* [AKU-1033](https://issues.alfresco.com/jira/browse/AKU-1033)       - Initial drop of alfresco/forms/controls/FilePicker
+* [AKU-1044](https://issues.alfresco.com/jira/browse/AKU-1044)       - Support for excluding form value from additional button payloads
+* [AKU-1048](https://issues.alfresco.com/jira/browse/AKU-1048)       - Further update to changes in 1.0.80 to reduce opacity of disabled form fields
+* [AKU-1052](https://issues.alfresco.com/jira/browse/AKU-1052)       - Support for mapping of non-truthy values in DynamicPayload
+
+1.0.80:
+* [AKU-1047](https://issues.alfresco.com/jira/browse/AKU-1047)       - Ensure PushButtons respect disabled state
+* [AKU-1048](https://issues.alfresco.com/jira/browse/AKU-1048)       - Set themeable opacity on disabled form controls
+* [AKU-1049](https://issues.alfresco.com/jira/browse/AKU-1049)       - Ensure late registered form controls process rules
+* [AKU-1050](https://issues.alfresco.com/jira/browse/AKU-1050)       - Ensure PreferenceService uses correct URL
+* [AKU-1051](https://issues.alfresco.com/jira/browse/AKU-1051)       - Support for optional no buttons label on PushButtons
+
+1.0.79:
+* [AKU-945](https://issues.alfresco.com/jira/browse/AKU-945)       - Break word on long form control labels in form dialogs
+* [AKU-1039](https://issues.alfresco.com/jira/browse/AKU-1039)     - Re-instate border around tabs
+* [AKU-1040](https://issues.alfresco.com/jira/browse/AKU-1040)     - Support fixed width on Select form control
+* [AKU-1041](https://issues.alfresco.com/jira/browse/AKU-1041)     - Increase gap betwen filter widgets
+* [AKU-1042](https://issues.alfresco.com/jira/browse/AKU-1042)     - Brackets in upload file name display fix
+* [AKU-1043](https://issues.alfresco.com/jira/browse/AKU-1043)     - Ensure values are set in TabbedControls
+* [AKU-1045](https://issues.alfresco.com/jira/browse/AKU-1045)     - Support for generated payloads in AlfButton
+* [#1169](https://github.com/Alfresco/Aikau/pull/1169)              - Use site for XHR loading actions and client specific view
+* [#1172](https://github.com/Alfresco/Aikau/pull/1172)              - PropertyLink CSS typo fix
+* [#1173](https://github.com/Alfresco/Aikau/pull/1173)              - Support for 0-value in Progress
+* [#1175](https://github.com/Alfresco/Aikau/pull/1175)              - Page title prefix encoding correction
+* [#1176](https://github.com/Alfresco/Aikau/pull/1176)              - TinyMCE locale generalization
+* [#1181](https://github.com/Alfresco/Aikau/pull/1181)              - FileSelect updated to filter on MIME type
+* [#1182](https://github.com/Alfresco/Aikau/pull/1182)              - Support for empty array in XHR actions
+
+1.0.78:
+* [AKU-1037](https://issues.alfresco.com/jira/browse/AKU-1037)     - Improve Dashlet CSS defaults
+* [AKU-1038](https://issues.alfresco.com/jira/browse/AKU-1038)     - Revert AKU-945 (form dialog layout changes)
+
+1.0.77.1:
+* [AKU-1020](https://issues.alfresco.com/jira/browse/AKU-1020)     - Support for item focus on AlfList load
+* [AKU-1023](https://issues.alfresco.com/jira/browse/AKU-1023)     - Set minimum height for dialogs
+* [AKU-1026](https://issues.alfresco.com/jira/browse/AKU-1026)     - Update selection/focus colours for PushButtons
+
+1.0.77:
+* [AKU-1019](https://issues.alfresco.com/jira/browse/AKU-1019)     - Ensure invertion action works for item selection
+* [AKU-1021](https://issues.alfresco.com/jira/browse/AKU-1021)     - Improve focus highlighting on CellContainer
+* [AKU-1024](https://issues.alfresco.com/jira/browse/AKU-1024)     - Update form control focus colours
+* [AKU-1025](https://issues.alfresco.com/jira/browse/AKU-1025)     - Reduce spacing between buttons in inline forms
+* [AKU-1027](https://issues.alfresco.com/jira/browse/AKU-1027)     - Update HeaderCell sort icon display
+* [AKU-1029](https://issues.alfresco.com/jira/browse/AKU-1029)     - FormsRuntime - initial workflow and task support
+* [AKU-1030](https://issues.alfresco.com/jira/browse/AKU-1030)     - FormsRuntime - improve structure handling
+* [AKU-1032](https://issues.alfresco.com/jira/browse/AKU-1032)     - FormsRuntime - "info.ftl" mapping
+* [AKU-1034](https://issues.alfresco.com/jira/browse/AKU-1034)     - FormsRuntime - improve MultiSelectInput array value handling
+
+1.0.76:
+* [AKU-1010](https://issues.alfresco.com/jira/browse/AKU-1010)     - Ensure failure message is not displayed for lists with pending request
+* [AKU-1011](https://issues.alfresco.com/jira/browse/AKU-1011)     - Handle long, unbroken names in SearchBox results
+* [AKU-1013](https://issues.alfresco.com/jira/browse/AKU-1013)     - Configurable results height for SearchBox
+* [AKU-1015](https://issues.alfresco.com/jira/browse/AKU-1015)     - Provide basic support for Share XML forms runtime
+* [AKU-1017](https://issues.alfresco.com/jira/browse/AKU-1017)     - Prevent progress notifications on download actions
+* [AKU-1018](https://issues.alfresco.com/jira/browse/AKU-1018)     - Fix Firefox specific handling of PublishAction clicks
+
+1.0.75:
+* [AKU-1009](https://issues.alfresco.com/jira/browse/AKU-1003)     - Provide additional sort controls
+
+1.0.74:
+* [AKU-1003](https://issues.alfresco.com/jira/browse/AKU-1003)     - Update UserService to work with lists
+* [AKU-1004](https://issues.alfresco.com/jira/browse/AKU-1004)     - Update UserService to support filtering, sort and pagination
+
+1.0.73:
+* [AKU-996](https://issues.alfresco.com/jira/browse/AKU-996)       - Improvements to menus handling sorting
+* [AKU-988](https://issues.alfresco.com/jira/browse/AKU-988)       - Support scoping in visibilityConfig
+* [AKU-1000](https://issues.alfresco.com/jira/browse/AKU-1000)     - Support for removing document title prefix via alfresco/header/SetTitle
+
+1.0.72.4:
+* [AKU-1010](https://issues.alfresco.com/jira/browse/AKU-1010)       - Ensure AlfList publishes pending load requests
+
+1.0.72.3:
+* [AKU-1007](https://issues.alfresco.com/jira/browse/AKU-1007)       - Block infinite scroll page load requests when a request is in progress
+
+1.0.72.2:
+* [AKU-1006](https://issues.alfresco.com/jira/browse/AKU-1006)       - Support for group images in AvatarThumbnail
+
+1.0.72.1:
+* [AKU-1002](https://issues.alfresco.com/jira/browse/AKU-1002)       - Trigger form control validation on disable state change
+
+1.0.72:
+* [AKU-947](https://issues.alfresco.com/jira/browse/AKU-947)       - Added 'simpleLayout' config option to PushButtons
+* [AKU-982](https://issues.alfresco.com/jira/browse/AKU-982)       - Added support for disabling actions in Indicators
+* [AKU-995](https://issues.alfresco.com/jira/browse/AKU-995)       - Additional layout CSS class for ClassicWindow
+* [AKU-997](https://issues.alfresco.com/jira/browse/AKU-997)       - Support for toggling edit mode via topic in InlineEditProperty
+* [AKU-998](https://issues.alfresco.com/jira/browse/AKU-998)       - PubQueue fix for pages with neither widgets nor services
+* [AKU-1001](https://issues.alfresco.com/jira/browse/AKU-1001)     - Improvements to progress indicator on navigation
+
+1.0.71.1:
+* [AKU-998](https://issues.alfresco.com/jira/browse/AKU-998)       - PubQueue release when no widgets or services
+
+1.0.71:
+* [AKU-981](https://issues.alfresco.com/jira/browse/AKU-981)       - Support for legacyMode fallback via whitelist validation in alfresco/renderers/Indicators
+* [AKU-983](https://issues.alfresco.com/jira/browse/AKU-983)       - Added generic "processing" notification
+* [AKU-986](https://issues.alfresco.com/jira/browse/AKU-986)       - Improved alfresco/misc/AlfTooltip orientation options
+* [AKU-987](https://issues.alfresco.com/jira/browse/AKU-987)       - Handle variable publication scopes in alfresco/buttons/AlfDynamicPayloadButton
+* [AKU-989](https://issues.alfresco.com/jira/browse/AKU-989)       - Added alfresco/forms/CollapsibleSection widget
+* [AKU-990](https://issues.alfresco.com/jira/browse/AKU-990)       - Variable pubSubScope form warnings support
+* [AKU-991](https://issues.alfresco.com/jira/browse/AKU-991)       - NodeRef attribute fallback in alfresco/services/NodePreviewService
+* [AKU-992](https://issues.alfresco.com/jira/browse/AKU-992)       - Support for simple links in alfresco/documentlibrary/AlfBreadcrumbTrail
+
+1.0.70:
+* [AKU-945](https://issues.alfresco.com/jira/browse/AKU-945)       - Standardize form control layout
+* [AKU-955](https://issues.alfresco.com/jira/browse/AKU-955)       - Handle text mis-alignment in FileUploadService
+* [AKU-956](https://issues.alfresco.com/jira/browse/AKU-956)       - Added custom TinyMCE specific empty content validator
+* [AKU-959](https://issues.alfresco.com/jira/browse/AKU-959)       - Support for disable state in Selector renderer
+* [AKU-963](https://issues.alfresco.com/jira/browse/AKU-963)       - Support for onlyShowOnHover in PublishAction
+* [AKU-979](https://issues.alfresco.com/jira/browse/AKU-979)       - Disable isDraggable by default
+* [AKU-980](https://issues.alfresco.com/jira/browse/AKU-980)       - Configurable result count message in AlfSearchList
+
+1.0.69:
+* [AKU-968](https://issues.alfresco.com/jira/browse/AKU-968)       - Support for preventing click bubbling in PublishOrLinkMixin
+* [AKU-970](https://issues.alfresco.com/jira/browse/AKU-970)       - Improve visibilityConfig in forms
+* [AKU-972](https://issues.alfresco.com/jira/browse/AKU-972)       - Ensure FilteringSelect option can be preselected
+* [AKU-973](https://issues.alfresco.com/jira/browse/AKU-973)       - Improve widgetsForNoDataDisplay rendering in AlfListView
+* [AKU-974](https://issues.alfresco.com/jira/browse/AKU-974)       - Support state management in visibilityConfig for all widgets
+* [AKU-975](https://issues.alfresco.com/jira/browse/AKU-975)       - Ensure forward slash present in folder link AlfSearchResult
+* [AKU-977](https://issues.alfresco.com/jira/browse/AKU-977)       - Fix SimplePicker layout issue
+
+1.0.68:
+* [AKU-956](https://issues.alfresco.com/jira/browse/AKU-956)       - Prevent empty comments from being saved
+* [AKU-962](https://issues.alfresco.com/jira/browse/AKU-962)       - Fix siteMode in DocumentListPicker
+* [AKU-965](https://issues.alfresco.com/jira/browse/AKU-965)       - Support multiple Aikau Surf Component true publication order
+* [AKU-966](https://issues.alfresco.com/jira/browse/AKU-966)       - Configurable icon paths in PublishAction
+* [AKU-969](https://issues.alfresco.com/jira/browse/AKU-969)       - Internationalization for simple date rendering
+* [AKU-971](https://issues.alfresco.com/jira/browse/AKU-971)       - ObjectProcessingMixin improvements
+
+1.0.67:
+* [AKU-942](https://issues.alfresco.com/jira/browse/AKU-942)       - Add info for empty AlfDocumentList folder views
+* [AKU-949](https://issues.alfresco.com/jira/browse/AKU-949)       - Additinonal local storage access protection
+* [AKU-954](https://issues.alfresco.com/jira/browse/AKU-954)       - Ensure DND upload highlighting only shown for appropriate permissions
+* [AKU-956](https://issues.alfresco.com/jira/browse/AKU-956)       - Prevent saving empty comments
+* [AKU-957](https://issues.alfresco.com/jira/browse/AKU-957)       - Ensure comment edits trigger CommentsList refresh
+* [AKU-958](https://issues.alfresco.com/jira/browse/AKU-958)       - Fix archetype Spring config for Surf 6 login
+* [ALF-21614](https://issues.alfresco.com/jira/browse/ALF-21614)   - AlfFormDialog fix (and deprecation)
+
 1.0.66:
 * [AKU-941](https://issues.alfresco.com/jira/browse/AKU-941)       - Add support for Smart Folders in alfresco/renderers/Thumbnail
 * [AKU-944](https://issues.alfresco.com/jira/browse/AKU-944)       - Improve encoding on data typed into MultiSelectInput

@@ -20,46 +20,16 @@
 // TODO: Add ARIA
 
 /**
- * An input control that allows multiple-selection of defined items. Note that, when
- * specifying the labelAttribute, queryAttribute and valueAttribute in the optionsConfig
- * as per the below example, the queryAttribute is used to search on and the
- * labelAttribute is used to display, so they would normally be the same value.
- *
- * @example <caption>Sample configuration:</caption>
- * {
- *    id: "MyMultiSelect",
- *    name: "alfresco/forms/controls/MultiSelectInput",
- *    config: {
- *       label: "My multi-select input",
- *       name: "form_field_name",
- *       width: "400px",
- *       choiceCanWrap: false, // Whether chosen items' text can wrap over multiple lines (defaults to true)
- *       choiceMaxWidth: "50%", // The maximum width of chosen items (defaults to 100%)
- *       optionsConfig: {
- *          labelAttribute: "name",  // What's displayed in the dropdown and choice (defaults to label)
- *          queryAttribute: "name",  // The attribute that's used when filtering the dropdown (defaults to name)
- *          valueAttribute: "value", // The actual submitted value for each chosen item (defaults to value)
- *          publishTopic: "ALF_RETRIEVE_MULTISELECT_INFO",
- *          publishPayload: {
- *             resultsProperty: "response.data.items"
- *          },
- *          labelFormat: { // Optional label format strings (all default to item[this.store.labelAttribute] if not specified)
- *             choice: "${value}",
- *             result: "${label}",
- *             full: "${value} - ${label}"
- *          },
- *          searchStartsWith: true // Whether the query attribute should start with the search string (defaults to false)
- *       }
- *    }
- * }
+ * This is the inner controls used by the 
+ * [MultiSelectInput]{@link module:alfresco/forms/controls/MultiSelectInput} form control.
  *
  * @module alfresco/forms/controls/MultiSelect
  * @extends external:dijit/_WidgetBase
  * @mixes external:dijit/_TemplatedMixin
  * @mixes external:dijit/_FocusMixin
- * @mixes alfresco/forms/controls/utilities/ChoiceMixin
- * @mixes alfresco/core/Core
- * @mixes alfresco/core/ObjectProcessingMixin
+ * @mixes module:alfresco/forms/controls/utilities/ChoiceMixin
+ * @mixes module:alfresco/core/Core
+ * @mixes module:alfresco/core/ObjectProcessingMixin
  * @author Martin Doyle
  */
 define([
@@ -200,6 +170,17 @@ define([
           * @type {object[]}
           */
          value: null,
+
+         /**
+          * An optional token that can be provided for splitting the supplied value. This should be configured
+          * when the value is provided as a string that needs to be converted into an array.
+          * 
+          * @instance
+          * @type {string}
+          * @default
+          * @since 1.0.77
+          */
+         valueDelimiter: null,
 
          /**
           * The width of the control, specified as a CSS value (optional)
@@ -431,7 +412,15 @@ define([
           * @returns {string[]} The value(s) of the control
           */
          getValue: function alfresco_forms_controls_MultiSelect__getValue() {
-            return this.value;
+            var value = this.value;
+            if (value && this.valueDelimiter && ObjectTypeUtils.isArray(value))
+            {
+               var itemValues = array.map(value, function(valueItem) {
+                  return valueItem[this.store.valueAttribute];
+               }, this);
+               value = itemValues.join(this.valueDelimiter);
+            }
+            return value;
          },
 
          /**
@@ -536,7 +525,11 @@ define([
 
             // Setup helper vars
             var newValuesArray = newValueParam;
-            if (!ObjectTypeUtils.isArray(newValuesArray)) {
+            if (newValueParam && this.valueDelimiter)
+            {
+               newValuesArray = newValueParam.split(this.valueDelimiter);
+            }
+            else if (!ObjectTypeUtils.isArray(newValuesArray)) {
                newValuesArray = (newValueParam && [newValueParam]) || [];
             }
 

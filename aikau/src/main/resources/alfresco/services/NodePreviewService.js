@@ -161,6 +161,13 @@ define(["dojo/_base/declare",
        */
       checkNodeMetadata: function alfresco_services_NodePreviewService__checkNodeMetadata(payload) {
          var nodeRef = payload.nodeRef;
+         if (!nodeRef && payload.node)
+         {
+            // Check the node in the payload for a nodeRef if not specifically requested in the 
+            // payload - this is useful when working against APIs that do not provide a separate
+            // nodeRef attribute on the item...
+            nodeRef = payload.node.nodeRef;
+         }
          var node = payload.node;
          var mimetype;
          if (node)
@@ -315,7 +322,7 @@ define(["dojo/_base/declare",
                            {
                               name: "alfresco/preview/AlfDocumentPreview",
                               config: {
-                                 heightMode: "DIALOG",
+                                 heightMode: (vs.h-250),
                                  pluginConditionsOverrides: this.pluginConditionsOverrides,
                                  proxy: this.proxy,
                                  widgetsForPluginsOverrides: this.widgetsForPluginsOverrides

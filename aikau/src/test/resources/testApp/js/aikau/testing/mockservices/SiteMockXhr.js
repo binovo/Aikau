@@ -30,8 +30,10 @@ define(["dojo/_base/declare",
         "dojo/text!./responseTemplates/SiteTest/PutSite.json",
         "dojo/text!./responseTemplates/SiteTest/DeleteSite.json",
         "dojo/text!./responseTemplates/SiteTest/PostBecomeSiteManager.json",
-        "dojo/text!./responseTemplates/SiteTest/PostRequestSiteMembership.json"], 
-        function(declare, lang, MockXhr, getSite, getModeratedSite, putSite, deleteSite, postBecomeSiteManager, postRequestSiteMembership) {
+        "dojo/text!./responseTemplates/SiteTest/PostRequestSiteMembership.json",
+        "dojo/text!./responseTemplates/Preferences/Preferences.json"], 
+        function(declare, lang, MockXhr, getSite, getModeratedSite, putSite, deleteSite, postBecomeSiteManager, 
+                 postRequestSiteMembership, Preferences) {
    
    return declare([MockXhr], {
 
@@ -72,61 +74,46 @@ define(["dojo/_base/declare",
                                     "/aikau/service/modules/create-site",
                                     lang.hitch(this, this.createSite));
             
-            this.server.respondWith(
-               "GET",
-               /\/aikau\/proxy\/alfresco\/api\/sites\/[^\/]*/,
-               [
-                  200,
-                  {"Content-Type":"application/json;charset=UTF-8"},
-                  getSite
-               ]
-            );
+            this.server.respondWith("GET",
+                                    /\/aikau\/proxy\/alfresco\/api\/sites\/[^\/]*/,
+                                    [200,{"Content-Type":"application/json;charset=UTF-8"},getSite]);
 
-            this.server.respondWith(
-               "GET",
-               "/aikau/proxy/alfresco/api/sites/site2",
-               [
-                  200,
-                  {"Content-Type":"application/json;charset=UTF-8"},
-                  getModeratedSite
-               ]
-            );
+            this.server.respondWith("GET",
+                                    "/aikau/proxy/alfresco/api/sites/site2",
+                                    [200,{"Content-Type":"application/json;charset=UTF-8"},getModeratedSite]);
 
-            this.server.respondWith(
-               "PUT",
-               /\/aikau\/proxy\/alfresco\/api\/sites\/(.*)/,
-               [
-                  200,
-                  {"Content-Type":"application/json;charset=UTF-8"},
-                  putSite
-               ]
-            );
+            this.server.respondWith("PUT",
+                                    /\/aikau\/proxy\/alfresco\/api\/sites\/(.*)/,
+                                    [200,{"Content-Type":"application/json;charset=UTF-8"},putSite]);
 
-            this.server.respondWith(
-               "DELETE",
-               /\/aikau\/proxy\/alfresco\/api\/sites\/(.*)/,
-               [
-                  200,
-                  {"Content-Type":"application/json;charset=UTF-8"},
-                  deleteSite
-               ]
-            );
+            this.server.respondWith("DELETE",
+                                    /\/aikau\/proxy\/alfresco\/api\/sites\/(.*)/,
+                                    [200,{"Content-Type":"application/json;charset=UTF-8"},deleteSite]);
 
-            this.server.respondWith(
-               "POST",
-               /\/aikau\/proxy\/alfresco\/api\/sites\/(.*)\/memberships/,
-               [
-                  200,
-                  {"Content-Type":"application/json;charset=UTF-8"},
-                  postBecomeSiteManager
-               ]
-            );
+            this.server.respondWith("POST",
+                                    /\/aikau\/proxy\/alfresco\/api\/sites\/(.*)\/memberships/,
+                                    [200,{"Content-Type":"application/json;charset=UTF-8"},postBecomeSiteManager]);
 
-            this.server.respondWith(
-               "POST",
-               /\/aikau\/proxy\/alfresco\/api\/sites\/(.*)\/invitations/,
-               lang.hitch(this, this.requestSiteMembership)
-            );
+            this.server.respondWith("POST",
+                                    /\/aikau\/proxy\/alfresco\/api\/sites\/(.*)\/invitations/,
+                                    lang.hitch(this, this.requestSiteMembership));
+
+            this.server.respondWith("GET",
+                                    /\/aikau\/proxy\/alfresco\/slingshot\/site-identifier-used/,
+                                    lang.hitch(this, this.validateSiteIdentifier));
+
+            this.server.respondWith("POST",
+                                    /\/aikau\/proxy\/alfresco\/api\/people\/guest\/preferences(.*)/,
+                                    [200,
+                                     {"Content-Type":"application/json;charset=UTF-8",
+                                     "Content-Length":7962},
+                                     Preferences]);
+
+            this.alfSubscribe("ALF_WIDGETS_READY", lang.hitch(this, function() {
+               this.alfPublish("UPDATE_CREATE_SITE_VALUES", {
+                  tb4: "Value Set"
+               }, true);
+            }));
 
          }
          catch(e)
@@ -162,6 +149,42 @@ define(["dojo/_base/declare",
                "Content-Type": "application/json;charset=UTF-8"
             }, JSON.stringify(postRequestSiteMembership));
          }
+      },
+
+      /**
+       * Handles site identifier validation.
+       *
+       * @instance
+       * @param  {object} request The request object
+       * @since 1.0.89
+       */
+      validateSiteIdentifier: function alfresco_testing_SiteMockXhr__validateSiteIdentifier(request) {
+         var url = request.url;
+         var id = (url.indexOf("shortName=") !== -1 && url.substring(url.lastIndexOf("shortName=") + 10)) ||
+                  (url.indexOf("title=") !== -1 && url.substring(url.lastIndexOf("title=") + 6));
+
+         var used = false;
+         switch(id) {
+            case "used": 
+               used = true;
+               break;
+
+            default:
+               used = false;
+         }
+
+         var response = {
+            used: used
+         };
+
+         var statusCode = 200;
+         if (id === "500")
+         {
+            statusCode = 500;
+         }
+         request.respond(statusCode, {
+            "Content-Type": "application/json;charset=UTF-8"
+         }, JSON.stringify(response));
       }
    });
 });

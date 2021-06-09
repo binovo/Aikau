@@ -31,9 +31,10 @@ define(["intern/dojo/node!fs",
       "intern/dojo/node!leadfoot/keys",
       "intern/dojo/Promise",
       "intern/dojo/lang",
+      "config/Config",
       "lodash"
    ],
-   function(fs, Command, keys, Promise, lang, _) {
+   function(fs, Command, keys, Promise, lang, Config, _) {
 
       // Necessary for ES6 features
       "use strict";
@@ -103,6 +104,35 @@ define(["intern/dojo/node!fs",
                   var clearButton = document.getElementById("mockXhr_clearLog");
                   clearButton && clearButton.click();
                });
+            });
+         },
+
+         /**
+          * Drag a node onto another one
+          *
+          * @instance
+          * @param {String} sourceSelector The CSS selector for the node to drag
+          * @param {String} toSelector The CSS selector for the node to drag onto
+          * @since 1.0.70
+          */
+         dragOnto: function(sourceSelector, toSelector) {
+
+            // Boilerplate stuff
+            return new this.constructor(this, function() {
+               var browser = this.parent;
+
+               // Use drag-code from https://github.com/theintern/leadfoot/issues/64#issuecomment-145493928
+               return browser.findByCssSelector(sourceSelector)
+                  .click()
+                  .moveMouseTo()
+                  .pressMouseButton(1)
+                  .moveMouseTo(10, -10)
+                  .end()
+
+               .findByCssSelector(toSelector)
+                  .moveMouseTo()
+                  .releaseMouseButton()
+                  .end();
             });
          },
 
@@ -240,7 +270,7 @@ define(["intern/dojo/node!fs",
 
             // Apply defaults to arguments
             opts = lang.mixin({
-               queryTimeout: 2000,
+               queryTimeout: Config.timeout.find,
                pos: "all",
                messageIfError: "",
                isGlobal: false,
@@ -341,7 +371,7 @@ define(["intern/dojo/node!fs",
          getTextContent: function(selector) {
             return new this.constructor(this, function() {
                var browser = this.parent;
-               return browser.execute(function (cssSelector) {
+               return browser.execute(function(cssSelector) {
                   var elem = document.querySelector(cssSelector);
                   return elem && elem.textContent;
                }, [selector]);
@@ -359,7 +389,7 @@ define(["intern/dojo/node!fs",
           * @param {string} [opts.method] The method use in the XHR request (this will
           *                               be automatically capitalised)
           * @param {object} [opts.headers={}] Looks for all of the specified header name/values
-          * @param {int} [opts.queryTimeout=2000] How long to wait for the first match
+          * @param {int} [opts.queryTimeout] How long to wait for the first match
           * @param {string} [opts.body] Searches for this string inside the request body
           * @param {string} [opts.messageIfError] Used as a prefix to any returned error message
           * @returns {object|object[]} If "first" or "last" was specified as the 'pos'
@@ -372,7 +402,7 @@ define(["intern/dojo/node!fs",
 
             // Apply defaults to arguments
             opts = lang.mixin({
-               queryTimeout: 2000,
+               queryTimeout: Config.timeout.find,
                pos: "all",
                url: "",
                method: "",
@@ -609,7 +639,7 @@ define(["intern/dojo/node!fs",
                // Get the environment info
                var rootSuite = this,
                   envType;
-               while(rootSuite.parent) {
+               while (rootSuite.parent) {
                   rootSuite = rootSuite.parent;
                }
                envType = rootSuite.environmentType;
@@ -693,7 +723,7 @@ define(["intern/dojo/node!fs",
                      fs.writeFile(screenshotPath, screenshot.toString("binary"), "binary", function(err) {
                         browser.execute(function(id) {
                            var infoBlock = document.getElementById(id);
-                           if(infoBlock) {
+                           if (infoBlock) {
                               infoBlock.parentNode.removeChild(infoBlock);
                            }
                         }, [infoId]);
@@ -714,11 +744,18 @@ define(["intern/dojo/node!fs",
           * Tab to the specified element on the page.
           *
           * @instance
-          * @param {string} selector The CSS selector of the element to tab to
-          * @param {int} [collectionIndex=0] If the selector matches a collection, this index will define the item within that collection if provided
-          * @param {int} [maxTabs=10] The maximum number of tabs to use (i.e. how many times to simulate pressing tab) - used to prevent forever looping round a page trying to find an element
+          * @param {Object} opts Options object
+          * @param {String} opts.selector The CSS selector of the element to tab to
+          * @param {String} [opts.index=0] If the selector matches a collection, this index will define the item within that collection if provided
+          * @param {int} [opts.maxTabs=10] The maximum number of tabs to use (i.e. how many times to simulate pressing tab) - used to prevent forever looping round a page trying to find an element
+          * @param {Boolean} [opts.reverse=false] If true, then shift+tab will be used instead (i.e. direction of tabbing is reversed)
           */
-         tabToElement: function(selector, collectionIndex, maxTabs) {
+         tabToElement: function({
+            selector = null,
+            index = 0,
+            maxTabs = 10,
+            reverse = false
+         }) {
 
             // Boilerplate stuff
             return new this.constructor(this, function() {
@@ -729,22 +766,21 @@ define(["intern/dojo/node!fs",
                   dfd = new Promise.Deferred();
 
                // Sanitise arguments
-               collectionIndex = collectionIndex || 0;
-               maxTabs = maxTabs || 10;
                if (!selector) {
                   throw new Error("No valid selector provided in tabToElement()");
                }
 
                // Define tabAndCheck function
                function tabAndCheck() {
-                  return browser.pressKeys(keys.TAB)
-                     .execute(function(targetElemSelector, index) {
-                        var targetElem = document.querySelectorAll(targetElemSelector)[index];
+                  return browser.pressKeys(reverse ? [keys.SHIFT, keys.TAB] : keys.TAB)
+                     .pressKeys(keys.NULL)
+                     .execute(function(targetElemSelector, elemIndex) {
+                        var targetElem = document.querySelectorAll(targetElemSelector)[elemIndex];
                         return targetElem && targetElem === document.activeElement;
-                     }, [selector, collectionIndex])
+                     }, [selector, index])
                      .then(function(foundElem) {
                         if (typeof foundElem === "undefined") {
-                           throw new Error("Unable to find target element with selector \"" + selector + "\" and index " + collectionIndex);
+                           throw new Error("Unable to find target element with selector \"" + selector + "\" and index " + index);
                         } else if (!foundElem && numTabs++ < maxTabs) {
                            return tabAndCheck();
                         } else if (!foundElem) {

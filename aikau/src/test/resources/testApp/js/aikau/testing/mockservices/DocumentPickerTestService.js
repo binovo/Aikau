@@ -24,12 +24,13 @@
  */
 define(["dojo/_base/declare",
         "alfresco/core/Core",
+        "alfresco/core/topics",
         "service/constants/Default",
         "dojo/_base/lang",
         "dojo/json",
         "dojo/text!./responseTemplates/DocumentPickerTest/RecentSites.json",
         "dojo/text!./responseTemplates/DocumentPickerTest/FavouriteSites.json"],
-        function(declare, AlfCore, AlfConstants, lang, dojoJson, recentSites, favouriteSites) {
+        function(declare, AlfCore, topics, AlfConstants, lang, dojoJson, recentSites, favouriteSites) {
    
    return declare([AlfCore], {
       
@@ -42,8 +43,8 @@ define(["dojo/_base/declare",
       constructor: function alfresco_testing_mockservices_DocumentPickerTestService__constructor(args) {
          lang.mixin(this, args);
          this.alfSubscribe("ALF_RETRIEVE_DOCUMENTS_REQUEST", lang.hitch(this, "onRetrieveDocumentsRequest"));
-         this.alfSubscribe("ALF_GET_RECENT_SITES", lang.hitch(this, "getRecentSites"));
-         this.alfSubscribe("ALF_GET_FAVOURITE_SITES", lang.hitch(this, "getFavouriteSites"));
+         this.alfSubscribe(topics.GET_RECENT_SITES, lang.hitch(this, "getRecentSites"));
+         this.alfSubscribe(topics.GET_FAVOURITE_SITES, lang.hitch(this, "getFavouriteSites"));
          this.alfSubscribe("ALF_GET_SITES", lang.hitch(this, "getSites"));
 
       },
@@ -53,7 +54,7 @@ define(["dojo/_base/declare",
        */
       onRetrieveDocumentsRequest: function alfresco_testing_mockservices_DocumentPickerTestService__onRetrieveDocumentsRequest(payload) {
          var _this = this;
-         var alfTopic = (payload.alfResponseTopic != null) ? (payload.alfResponseTopic + "_SUCCESS") : "ALF_RETRIEVE_DOCUMENTS_REQUEST_SUCCESS";
+         var alfTopic = (payload.alfResponseTopic) ? (payload.alfResponseTopic + "_SUCCESS") : "ALF_RETRIEVE_DOCUMENTS_REQUEST_SUCCESS";
          // var alfTopic = payload.alfResponseTopic + "_SUCCESS";
          var template = payload.nodeRef.replace(/\//g, "_").replace(/:/g, "");
          var url = dojo.moduleUrl("aikauTesting/mockservices/responseTemplates/DocumentPickerTest/" + template).slice(0, -1) + ".json";

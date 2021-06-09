@@ -132,6 +132,8 @@
  * @property {number} [duration=0] - The duration of the fade effect when showing or hiding the dialog
  * @property {string} formSubmissionTopic - The topic to publish when the confirmation button is used (the published payload will be the form value)
  * @property {Object} formSubmissionPayloadMixin - An additional object to "mixin" to the form value before it is published
+ * @property {boolean} [formSubmissionGlobal=true] - Whether or not to publish the form submission topic globally
+ * @property {string} [formSubmissionScope=null] - A custom scope to be used when publishing the form submission topic
  * @property {Object} [formValue={}] - The initial value to apply to the form when created. This should be an object with attributes mapping to the "name" attribute of each form control.
  * @property {string} [dialogId=null] The ID of the dialog to display. Only one dialog with no dialogId can exist on a page at a time, therefore it is sensible to always include an id for your dialogs to allow stacking.
  * @property {boolean} [dialogRepeats=false] Indicates that an additional button the publishes the current form and then recreates the dialog again
@@ -153,6 +155,8 @@
  * @property {boolean} [showValidationErrorsImmediately=true] Indicates whether or not to display form errors immediately
  * @property {object} [customFormConfig=null] Any additional configuration that can be applied to a [Form]{@link module:alfresco/forms/Form} (please note that the following form configuration
  * attributes will always be overridden by specific form dialog configuration: "additionalCssClasses", "displayButtons", "widgets", "value", "warnings" and "warningsPosition")
+ * @property {boolean} [noMinWidth=false] Indicates whether the minimum width restriction should be lifted
+ * @property {boolean} [destroyOnHide=false] Indicates the dialog should be completely torn down and its widgets destroyed immediately after being hidden.
  */
 
 /**
@@ -173,6 +177,8 @@
  * @property {Array} [publishOnShow=null] - An array of publications objects to make when the dialog is displayed
  * @property {boolean} [fullScreenMode=false] Whether or not to create the dialog the size of the screen
  * @property {boolean} [fullScreenPadding=10] The padding to leave around the dialog when in full screen mode
+ * @property {boolean} [noMinWidth=false] Indicates whether the minimum width restriction should be lifted
+ * @property {boolean} [destroyOnHide=false] Indicates the dialog should be completely torn down and its widgets destroyed immediately after being hidden.
  */
 
 define(["dojo/_base/declare",
@@ -462,6 +468,17 @@ define(["dojo/_base/declare",
             fixedWidth = true;
          }
 
+         // In general we want to clone the models in payloads to ensure that model data cannot
+         // be updated and then re-used, however we need to support a specific instance for the
+         // UploadService where non-cloning is relied upon...
+         var widgetsContent = payload.widgetsContent;
+         var widgetsButtons = payload.widgetsButtons;
+         if (typeof payload.cloneModels === "undefined" || payload.cloneModels)
+         {
+            widgetsContent = lang.clone(payload.widgetsContent);
+            widgetsButtons = lang.clone(payload.widgetsButtons);
+         }
+
          // TODO: Update this and other function with scroll setting...
          var dialogConfig = {
             id: payload.dialogId ? payload.dialogId : this.generateUuid(),
@@ -470,14 +487,15 @@ define(["dojo/_base/declare",
             duration: payload.duration || 0,
             fullScreenMode: payload.fullScreenMode || false,
             fullScreenPadding: !isNaN(payload.fullScreenPadding) ? payload.fullScreenPadding : 10,
-            widgetsContent: payload.widgetsContent,
-            widgetsButtons: payload.widgetsButtons,
+            widgetsContent: widgetsContent,
+            widgetsButtons: widgetsButtons,
             additionalCssClasses: payload.additionalCssClasses ? payload.additionalCssClasses : "",
             dialogWidth: payload.dialogWidth || null,
             contentWidth: payload.contentWidth ? payload.contentWidth : null,
             contentHeight: payload.contentHeight ? payload.contentHeight : null,
             handleOverflow: handleOverflow,
-            fixedWidth: fixedWidth
+            fixedWidth: fixedWidth,
+            noMinWidth: !!payload.noMinWidth
          };
 
          // Ensure that text content is center aligned (see AKU-368)...
@@ -486,7 +504,7 @@ define(["dojo/_base/declare",
             dialogConfig.additionalCssClasses += " alfresco-dialogs-AlfDialog--textContent";
          }
 
-         var dialog = new AlfDialog(dialogConfig);
+         var dialog = this.createDialog(dialogConfig);
 
          if (payload.publishOnShow)
          {
@@ -503,6 +521,18 @@ define(["dojo/_base/declare",
       },
 
       /**
+       * Creates and returns a [dialog]{@link module:alfresco/dialogs/AlfDialog} using
+       * the configuration provided.
+       * 
+       * @instance
+       * @parameter {object} config The configuration to use to create the dialog
+       * @since 1.0.96
+       */
+      createDialog: function alfresco_services_DialogService__createDialog(config) {
+         return new AlfDialog(config);
+      },
+
+      /**
        * This function is called when the request to create a dialog includes publication data
        * to be performed when the dialog is displayed.
        *
@@ -513,7 +543,7 @@ define(["dojo/_base/declare",
          // TODO: Defensive coding, global/parent scope arg handling...
          if (publication.publishTopic)
          {
-            this.alfPublish(publication.publishTopic, publication.publishPayload);
+            this.alfPublish(publication.publishTopic, publication.publishPayload, !!publication.publishGlobal);
          }
          else
          {
@@ -530,7 +560,7 @@ define(["dojo/_base/declare",
        * @param {module:alfresco/services/DialogService~event:ALF_CREATE_FORM_DIALOG_REQUEST} payload The payload published on the request topic.
        */
       onCreateFormDialogRequest: function alfresco_services_DialogService__onCreateFormDialogRequest(payload) {
-         // jshint maxstatements:false
+         // jshint maxstatements:false, maxcomplexity:false
          this.cleanUpAnyPreviousDialog(payload);
          if (!payload.widgets)
          {
@@ -545,7 +575,7 @@ define(["dojo/_base/declare",
             try
             {
                // Create a new pubSubScope just for this request (to allow multiple dialogs to behave independently)...
-               var pubSubScope = this.generateUuid();
+               var pubSubScope = payload.pubSubScope || this.generateUuid();
                var subcriptionTopic =  pubSubScope + this._formConfirmationTopic;
                var confirmationHandle = this.alfSubscribe(subcriptionTopic, lang.hitch(this, this.onFormDialogConfirmation));
                this.mapRequestedIdToHandle(payload, "dialog.confirmation", confirmationHandle);
@@ -576,7 +606,7 @@ define(["dojo/_base/declare",
                   formConfig.config.showValidationErrorsImmediately = false;
                }
                var dialogConfig = this.createDialogConfig(config, formConfig);
-               var dialog = new AlfDialog(dialogConfig);
+               var dialog = this.createDialog(dialogConfig);
                this.mapRequestedIdToDialog(payload, dialog);
                this._showDialog(payload, dialog);
 
@@ -589,6 +619,11 @@ define(["dojo/_base/declare",
                {
                   var enableHandle = this.alfSubscribe(config.dialogEnableTopic, lang.hitch(this, this.onFailedSubmission, dialog));
                   this.mapRequestedIdToHandle(payload, "dialog.enable", enableHandle);
+               }
+               if (payload.formSubmissionTriggerTopic)
+               {
+                  var triggerSubmissionHandle = this.alfSubscribe(pubSubScope + payload.formSubmissionTriggerTopic, lang.hitch(this, this.onCloseDialog, dialog));
+                  this.mapRequestedIdToHandle(payload, "dialog.trigger", triggerSubmissionHandle);
                }
 
                if (payload.dialogRepeats)
@@ -721,6 +756,7 @@ define(["dojo/_base/declare",
             duration: config.duration || 0,
             handleOverflow: handleOverflow,
             fixedWidth: fixedWidth,
+            noMinWidth:  !!config.noMinWidth,
             fullScreenMode: config.fullScreenMode || false,
             fullScreenPadding: !isNaN(config.fullScreenPadding) ? config.fullScreenPadding : 10,
             parentPubSubScope: config.parentPubSubScope,
@@ -746,7 +782,8 @@ define(["dojo/_base/declare",
                            formSubmissionScope: config.formSubmissionScope,
                            responseScope: config.alfResponseScope,
                            dialogEnableTopic: config.dialogEnableTopic
-                        }
+                        },
+                        triggerTopic: config.formSubmissionTriggerTopic
                      }
                   },
                   {
@@ -920,9 +957,14 @@ define(["dojo/_base/declare",
             });
 
             // If there are no dialogs "left" then set the dialogs-showing CSS state to "false"
-            if(this._activeDialogs.length === 0) {
+            if (this._activeDialogs.length === 0) {
                domClass.remove(document.documentElement, "alfresco-dialog-AlfDialog--dialogs-visible");
                domStyle.set(document.body, "margin-right", "0");
+            }
+
+            // If the request payload specified destroyOnHide do the cleanup early
+            if (payload.destroyOnHide) {
+               this.cleanUpAnyPreviousDialog(payload);
             }
          }));
       },

@@ -63,7 +63,7 @@ define(["dojo/_base/declare",
         "dojo/date/stamp",
         "dojo/on"], 
         function(declare, lang, array, _Widget, _Templated, TemporalUtils, FileSizeMixin, _PublishPayloadMixin,
-                 SearchBoxTemplate, LiveSearchTemplate, LiveSearchItemTemplate, AlfCore, AlfXhr, urlTypes, AlfMenuBar, 
+                 SearchBoxTemplate, LiveSearchTemplate, LiveSearchItemTemplate, AlfCore, CoreXhr, urlTypes, AlfMenuBar, 
                  urlUtils, AlfConstants, JSON, domAttr, domStyle, domClass, domConstruct, Stamp, on) {
 
    /**
@@ -111,6 +111,19 @@ define(["dojo/_base/declare",
       containerNodePeople: null,
       
       /**
+       * An optional height that can be configured for the live search results. Without this being set 
+       * the available space will be used (and may cause the page to grow). When a height is set it will 
+       * prevent the results box growing beyond that size and will add scrollbars to alllow access to all 
+       * the results.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.76
+       */
+      height: null,
+
+      /**
        * @instance
        * @type {string}
        * @default
@@ -133,6 +146,31 @@ define(["dojo/_base/declare",
          this.label.sites = this.message(this.searchBox.sitesTitle);
          this.label.people = this.message(this.searchBox.peopleTitle);
          this.label.more = this.message(this.searchBox.moreTitle);
+         this.label.contextRespository = this.message(this.searchBox.contextRepositoryLabel);
+         var site = this.searchBox.siteName ? this.searchBox.siteName : this.searchBox.site;
+         this.label.contextSite = this.message(this.searchBox.contextSiteLabel, site);
+         this.label.repositoryTooltip = this.message(this.searchBox.repositoryTitle);
+         this.label.siteTooltip = this.message(this.searchBox.siteTitle);
+      },
+
+      /**
+       * 
+       * @instance
+       * @default 1.0.76
+       */
+      postCreate: function alfresco_header_LiveSearch__postCreate() {
+         var site = this.searchBox.site;
+         if (this.searchBox.enableContextLiveSearch === false || !site) {
+            domStyle.set(this.contextNode, "display", "none"); 
+         }
+         
+         if (this.height) {
+            domStyle.set(this.domNode, {
+               maxHeight: this.height,
+               overflowX: "hidden",
+               overflowY: "auto"
+            });
+         }
       },
       
       /**
@@ -236,7 +274,7 @@ define(["dojo/_base/declare",
    /**
     * alfresco/header/SearchBox widget
     */ 
-   return declare([_Widget, _Templated, AlfCore, AlfXhr, TemporalUtils, FileSizeMixin], {
+   return declare([_Widget, _Templated, CoreXhr, TemporalUtils, FileSizeMixin], {
 
       /**
        * The scope to use for i18n messages.
@@ -276,51 +314,7 @@ define(["dojo/_base/declare",
        * @type {object}
        * @default
        */
-      _searchMenu: null,
-
-      /**
-       * This is the width of the search input field (in pixels).
-       * 
-       * @instance
-       * @type {integer}
-       * @default
-       */
-      width: "180",
-
-      /**
-       * @instance
-       * @type {string}
-       * @default
-       */
-      site: null,
-
-      /**
-       * @instance
-       * @type {boolean}
-       * @default
-       */
-      advancedSearch: true,
-      
-      /**
-       * @instance
-       * @type {boolean}
-       * @default
-       */
-      allsites: false,
-      
-      /**
-       * @instance
-       * @type {boolean}
-       * @default
-       */
-      liveSearch: true,
-      
-      /**
-       * @instance
-       * @type {string}
-       * @default
-       */
-      lastSearchText: null,
+      _LiveSearch: null,
       
       /**
        * @instance
@@ -334,7 +328,21 @@ define(["dojo/_base/declare",
        * @type {number}
        * @default
        */
+      _lastSearchIndex: 0,
+      
+      /**
+       * @instance
+       * @type {number}
+       * @default
+       */
       _minimumSearchLength: 2,
+      
+      /**
+       * @instance
+       * @type {object}
+       * @default
+       */
+      _requests: null,
       
       /**
        * @instance
@@ -348,29 +356,24 @@ define(["dojo/_base/declare",
        * @type {object}
        * @default
        */
-      _LiveSearch: null,
-      
-       /**
-       * @instance
-       * @type {object}
-       * @default
-       */
-      _requests: null,
-      
-       /**
-       * @instance
-       * @type {number}
-       * @default
-       */
-      _lastSearchIndex: 0,
-      
+      _searchMenu: null,
+
       /**
+       * The text to use for the accessibility instruction on the input field.
+       *
        * @instance
        * @type {string}
        * @default
        */
-      resultsCounts: null,
+      accessibilityInstruction: "search.label",
 
+      /**
+       * @instance
+       * @type {boolean}
+       * @default
+       */
+      advancedSearch: true,
+      
       /**
        * This indicates whether or not the live search popup should be aligned to the
        * right or left of the search box. It defaults to true as this is the expected
@@ -381,6 +384,221 @@ define(["dojo/_base/declare",
        * @default
        */
       alignment: "right",
+
+      /**
+       * @instance
+       * @type {boolean}
+       * @default
+       */
+      allsites: false,
+      
+      /**
+       * This is the page to navigate to for blog post links. It defaults to 
+       * "blog-postview" (as this is the standard blog post page in 
+       * Alfresco Share) but it can be configured to go to a custom page.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       */
+      blogPage: "blog-postview",
+
+      /**
+       * The label to display for selection of searching in Repository context in the live search results panel.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.78
+       */
+      contextRepositoryLabel: "search.in-repository",
+
+      /**
+       * The label to display for selection of searching in Site context in the live search results panel.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.78
+       */
+      contextSiteLabel: "search.in-site",
+
+      /**
+       * The default scope to use when requesting a search.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       */
+      defaultSearchScope: "repo",
+
+      /**
+       * This is the page to navigate to for document container links. It defaults
+       * to the "documentlibrary" (as this is the standard document library page in
+       * Alfresco Share) but it can be configured to go to a custom page.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       */
+      documentLibraryPage: "documentlibrary",
+
+      /**
+       * This is the page to navigate to for document links. It defaults to 
+       * "document-details" (as this is the standard document details page in 
+       * Alfresco Share) but it can be configured to go to a custom page.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       */
+      documentPage: "document-details",
+
+      /**
+       * The title to use as above document results in the live search results panel.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       */
+      documentsTitle: "search.documents",
+
+      /**
+       * Eanble the context switching feature of live search.
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.78
+       */
+      enableContextLiveSearch: false,
+
+      /**
+       * An optional height that can be configured for the live search results. Without this being set 
+       * the available space will be used (and may cause the page to grow). When a height is set it will 
+       * prevent the results box growing beyond that size and will add scrollbars to alllow access to all 
+       * the results.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.76
+       */
+      liveSearchHeight: null,
+
+      /**
+       * Some additional search terms to include in search requests that will not be displayed to the
+       * user. Setting this can tailor the results that are shown in both the search results page and
+       * the live search results.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       */
+      hiddenSearchTerms: "",
+
+      /**
+       * @instance
+       * @type {string}
+       * @default
+       */
+      lastSearchText: null,
+      
+      /**
+       * This indicated whether or not the search box should link to the faceted search page or not. It is used by the
+       * [generateSearchPageLink fuction]{@link module:alfresco/header/SearchBox#generateSearchPageLink} to determine
+       * the URL to generate for displaying search results. By default it will be the faceted search page.
+       *
+       * @instance
+       * @type {boolean}
+       * @default
+       */
+      linkToFacetedSearch: true,
+
+      /**
+       * @instance
+       * @type {boolean}
+       * @default
+       */
+      liveSearch: true,
+      
+      /**
+       * The URI to use performing the live search for documents. If the default is re-configured then REST API
+       * to be used is expected to be able to handle the request parameter of "t" for the search term,
+       * "maxResults" for the page size and "startIndex" for the first result in the page. The REST API is expected
+       * to be a Repository based WebScript supporting the GET method.
+       *
+       * @instance
+       * @type {string}
+       * @default 
+       * @since 1.0.37
+       */
+      liveSearchDocumentsUri: "slingshot/live-search-docs",
+
+      /**
+       * The URI to use performing the live search for people. If the default is re-configured then REST API
+       * to be used is expected to be able to handle the request parameter of "t" for the search term,
+       * "maxResults" for the page size and "startIndex" for the first result in the page. The REST API is expected
+       * to be a Repository based WebScript supporting the GET method.
+       *
+       * @instance
+       * @type {string}
+       * @default 
+       * @since 1.0.37
+       */
+      liveSearchPeopleUri: "slingshot/live-search-people",
+
+      /**
+       * The URI to use performing the live search for sites. If the default is re-configured then REST API
+       * to be used is expected to be able to handle the request parameter of "t" for the search term,
+       * "maxResults" for the page size and "startIndex" for the first result in the page. The REST API is expected
+       * to be a Repository based WebScript supporting the GET method.
+       *
+       * @instance
+       * @type {string}
+       * @default 
+       * @since 1.0.37
+       */
+      liveSearchSitesUri: "slingshot/live-search-sites",
+
+      /**
+       * The title to use on the button for retrieving more document results.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       */
+      moreTitle: "search.more",
+
+      /**
+       * This is the page to navigate to for user links. It defaults to 
+       * "profile" (as this is the standard profile page in 
+       * Alfresco Share) but it can be configured to go to a custom page. The page
+       * will be prefixed with the standard user URI token mapping (e.g. user/<user-id>/)
+       *
+       * @instance
+       * @type {string}
+       * @default
+       */
+      peoplePage: "profile",
+
+      /**
+       * The title to use as above people results in the live search results panel.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       */
+      peopleTitle: "search.people",
+
+      /**
+       * The placeholder text to set in the main input field.
+       *
+       * @instance
+       * @type {string}
+       * @default
+       */
+      placeholder: "search.instruction",
 
       /**
        * This is an optional topic to publish on when a results is clicked. Configuring a publishTopic
@@ -462,50 +680,53 @@ define(["dojo/_base/declare",
       publishPayloadItemMixin: true,
 
       /**
-       * This is the page to navigate to for document container links. It defaults
-       * to the "documentlibrary" (as this is the standard document library page in
-       * Alfresco Share) but it can be configured to go to a custom page.
-       *
        * @instance
        * @type {string}
        * @default
        */
-      documentLibraryPage: "documentlibrary",
+      resultsCounts: null,
 
       /**
-       * This is the page to navigate to for document links. It defaults to 
-       * "document-details" (as this is the standard document details page in 
-       * Alfresco Share) but it can be configured to go to a custom page.
-       *
+       * The title to use on the repository search toggle.
+       * 
        * @instance
        * @type {string}
        * @default
+       * @since 1.0.78
        */
-      documentPage: "document-details",
+      repositoryTitle: "search.in-repository.tooltip",
 
       /**
-       * This is the page to navigate to for blog post links. It defaults to 
-       * "blog-postview" (as this is the standard blog post page in 
-       * Alfresco Share) but it can be configured to go to a custom page.
+       * The search results page to use. If this is left as the default of null then it is assumed that
+       * the widget is being used within Alfresco Share and the standard search page or faceted search
+       * page will be used (depending upon the configuration of 
+       * [linkToFacetedSearch]{@link module:alfresco/header/SearchBox#linkToFacetedSearch}). Alternatively
+       * this can be configured to be a custom page.
        *
        * @instance
        * @type {string}
        * @default
        */
-      blogPage: "blog-postview",
+      searchResultsPage: null,
 
       /**
-       * This is the page to navigate to for wiki page links. It defaults to 
-       * "wiki-page" (as this is the standard Wiki page in 
-       * Alfresco Share) but it can be configured to go to a custom page.
-       *
        * @instance
        * @type {string}
        * @default
        */
-      wikiPage: "wiki-page",
+      site: null,
 
-       /**
+      /**
+       * True if the current site ID context should be passed to the document search API
+       * 
+       * @instance
+       * @type {boolean}
+       * @default false
+       * @since 1.0.78
+       */
+      siteContext: false,
+
+      /**
        * This is the page to navigate to for site home links. It defaults to 
        * "dashboard" (as this is the standard dashboard page in 
        * Alfresco Share) but it can be configured to go to a custom page. The page
@@ -518,16 +739,60 @@ define(["dojo/_base/declare",
       sitePage: "dashboard",
 
       /**
-       * This is the page to navigate to for user links. It defaults to 
-       * "profile" (as this is the standard profile page in 
-       * Alfresco Share) but it can be configured to go to a custom page. The page
-       * will be prefixed with the standard user URI token mapping (e.g. user/<user-id>/)
-       *
+       * The optional display name label for the current site.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.78
+       */
+      siteName: null,
+
+      /**
+       * The title to use on the site search toggle.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.78
+       */
+      siteTitle: "search.in-site.tooltip",
+
+      /**
+       * Indicates whether or not document results should be displayed in the live search pane.
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       */
+      showDocumentResults: true,
+
+      /**
+       * Indicates whether or not people results should be displayed in the live search pane.
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       */
+      showPeopleResults: true,
+
+      /**
+       * Indicates whether or not site results should be displayed in the live search pane.
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       */
+      showSiteResults: true,
+
+      /**
+       * The title to use as above site results in the live search results panel.
+       * 
        * @instance
        * @type {string}
        * @default
        */
-      peoplePage: "profile",
+      sitesTitle: "search.sites",
 
       /**
        * If this is overridden to be true then hitting the enter key will not trigger a redirect
@@ -540,81 +805,24 @@ define(["dojo/_base/declare",
       suppressRedirect: false,
 
       /**
-       * Indicates whether or not document results should be displayed in the live search pane.
+       * This is the width of the search input field (in pixels).
        * 
        * @instance
-       * @type {boolean}
+       * @type {integer}
        * @default
        */
-      showDocumentResults: true,
+      width: "180",
 
       /**
-       * Indicates whether or not site results should be displayed in the live search pane.
-       * 
-       * @instance
-       * @type {boolean}
-       * @default
-       */
-      showSiteResults: true,
-
-      /**
-       * Indicates whether or not people results should be displayed in the live search pane.
-       * 
-       * @instance
-       * @type {boolean}
-       * @default
-       */
-      showPeopleResults: true,
-
-      /**
-       * Some additional search terms to include in search requests that will not be displayed to the
-       * user. Setting this can tailor the results that are shown in both the search results page and
-       * the live search results.
+       * This is the page to navigate to for wiki page links. It defaults to 
+       * "wiki-page" (as this is the standard Wiki page in 
+       * Alfresco Share) but it can be configured to go to a custom page.
        *
        * @instance
        * @type {string}
        * @default
        */
-      hiddenSearchTerms: "",
-
-      /**
-       * The URI to use performing the live search for documents. If the default is re-configured then REST API
-       * to be used is expected to be able to handle the request parameter of "t" for the search term,
-       * "maxResults" for the page size and "startIndex" for the first result in the page. The REST API is expected
-       * to be a Repository based WebScript supporting the GET method.
-       *
-       * @instance
-       * @type {string}
-       * @default 
-       * @since 1.0.37
-       */
-      liveSearchDocumentsUri: "slingshot/live-search-docs",
-
-      /**
-       * The URI to use performing the live search for sites. If the default is re-configured then REST API
-       * to be used is expected to be able to handle the request parameter of "t" for the search term,
-       * "maxResults" for the page size and "startIndex" for the first result in the page. The REST API is expected
-       * to be a Repository based WebScript supporting the GET method.
-       *
-       * @instance
-       * @type {string}
-       * @default 
-       * @since 1.0.37
-       */
-      liveSearchSitesUri: "slingshot/live-search-sites",
-
-      /**
-       * The URI to use performing the live search for people. If the default is re-configured then REST API
-       * to be used is expected to be able to handle the request parameter of "t" for the search term,
-       * "maxResults" for the page size and "startIndex" for the first result in the page. The REST API is expected
-       * to be a Repository based WebScript supporting the GET method.
-       *
-       * @instance
-       * @type {string}
-       * @default 
-       * @since 1.0.37
-       */
-      liveSearchPeopleUri: "slingshot/live-search-people",
+      wikiPage: "wiki-page",
 
       /**
        * @instance
@@ -641,60 +849,6 @@ define(["dojo/_base/declare",
       },
 
       /**
-       * The placeholder text to set in the main input field.
-       *
-       * @instance
-       * @type {string}
-       * @default
-       */
-      placeholder: "search.instruction",
-
-      /**
-       * The text to use for the accessibility instruction on the input field.
-       *
-       * @instance
-       * @type {string}
-       * @default
-       */
-      accessibilityInstruction: "search.label",
-
-      /**
-       * The title to use as above document results in the live search results panel.
-       * 
-       * @instance
-       * @type {string}
-       * @default
-       */
-      documentsTitle: "search.documents",
-
-      /**
-       * The title to use as above site results in the live search results panel.
-       * 
-       * @instance
-       * @type {string}
-       * @default
-       */
-      sitesTitle: "search.sites",
-
-      /**
-       * The title to use as above people results in the live search results panel.
-       * 
-       * @instance
-       * @type {string}
-       * @default
-       */
-      peopleTitle: "search.people",
-
-      /**
-       * The title to use on the button for retrieving more document results.
-       * 
-       * @instance
-       * @type {string}
-       * @default
-       */
-      moreTitle: "search.more",
-
-      /**
        * @instance
        */
       postCreate: function alfresco_header_SearchBox__postCreate() {
@@ -711,12 +865,18 @@ define(["dojo/_base/declare",
          on(this._searchTextNode, "keydown", lang.hitch(this, function(evt) {
             this.onSearchBoxKeyDown(evt);
          }));
+         // Paste event is called before the pasted value is applied to the source element - we use a setTimeout
+         // to catch the value on the next time around the browser event loop. This is a little messy but works
+         // consistently on all supported browsers.
+         on(this._searchTextNode, "paste", lang.hitch(this, function() {
+            setTimeout(lang.hitch(this, function() {
+               this.onSearchBoxKeyUp({keyCode:0});
+            }), 0);
+         }));
          
          // construct the optional advanced search menu
          if (this.advancedSearch)
          {
-            var currSite = lang.getObject("Alfresco.constants.SITE");
-
             this._searchMenu = new AlfMenuBar({
                widgets: [
                   {
@@ -734,7 +894,7 @@ define(["dojo/_base/declare",
                                  id: this.id + "_ADVANCED_SEARCH",
                                  i18nScope: "org.alfresco.SearchBox",
                                  label: "search.advanced",
-                                 targetUrl: (currSite ? "site/" + currSite + "/" : "") + "advsearch"
+                                 targetUrl: (this.site ? "site/" + this.site + "/" : "") + "advsearch"
                               }
                            }
                         ]
@@ -758,7 +918,8 @@ define(["dojo/_base/declare",
          {
             // construct the live search panel
             this._LiveSearch = new LiveSearch({
-               searchBox: this
+               searchBox: this,
+               height: this.liveSearchHeight
             });
 
             if (this.alignment)
@@ -767,6 +928,26 @@ define(["dojo/_base/declare",
             }
 
             this._LiveSearch.placeAt(this._searchLiveNode);
+            
+            // event handlers to change the search context
+            on(this._LiveSearch.contextRepositoryNode, "click", lang.hitch(this, function(evt) {
+               // change context to repository
+               domClass.add(this._LiveSearch.contextRepositoryNode, "alf-livesearch-context--active");
+               domClass.remove(this._LiveSearch.contextSiteNode, "alf-livesearch-context--active");
+               this.siteContext = false;
+               this.lastSearchText = "";
+               this.onSearchBoxKeyUp(evt);
+               evt.preventDefault();
+            }));
+            on(this._LiveSearch.contextSiteNode, "click", lang.hitch(this, function(evt) {
+               // change context to site
+               domClass.add(this._LiveSearch.contextSiteNode, "alf-livesearch-context--active");
+               domClass.remove(this._LiveSearch.contextRepositoryNode, "alf-livesearch-context--active");
+               this.siteContext = true;
+               this.lastSearchText = "";
+               this.onSearchBoxKeyUp(evt);
+               evt.preventDefault();
+            }));
 
             // event handlers to hide/show the panel
             on(window, "click", lang.hitch(this, function() {
@@ -783,39 +964,6 @@ define(["dojo/_base/declare",
          
          this.addAccessibilityLabel();
       },
-
-      /**
-       * This indicated whether or not the search box should link to the faceted search page or not. It is used by the
-       * [generateSearchPageLink fuction]{@link module:alfresco/header/SearchBox#generateSearchPageLink} to determine
-       * the URL to generate for displaying search results. By default it will be the faceted search page.
-       *
-       * @instance
-       * @type {boolean}
-       * @default
-       */
-      linkToFacetedSearch: true,
-
-      /**
-       * The search results page to use. If this is left as the default of null then it is assumed that
-       * the widget is being used within Alfresco Share and the standard search page or faceted search
-       * page will be used (depending upon the configuration of 
-       * [linkToFacetedSearch]{@link module:alfresco/header/SearchBox#linkToFacetedSearch}). Alternatively
-       * this can be configured to be a custom page.
-       *
-       * @instance
-       * @type {string}
-       * @default
-       */
-      searchResultsPage: null,
-
-      /**
-       * The default scope to use when requesting a search.
-       *
-       * @instance
-       * @type {string}
-       * @default
-       */
-      defaultSearchScope: "repo",
 
       /**
        * This function is used to construct the search terms that are passed to a search service. The
@@ -848,7 +996,7 @@ define(["dojo/_base/declare",
        */
       generateSearchPageLink: function alfresco_header_SearchBox__generateSearchPageLink(terms) {
          var url;
-         var scope = this.defaultSearchScope;
+         var scope = (this.siteContext === true && this.site) ? this.site : this.defaultSearchScope;
          if (this.searchResultsPage)
          {
             // Generate custom search page link...
@@ -1074,11 +1222,12 @@ define(["dojo/_base/declare",
          {
             info += "<a href='" + siteDocLibUrl + "'>" + this.encodeHTML(item.site.title) + "</a> | ";
          }
-         var modifiedUserUrl = urlUtils.convertUrl("user/" + this.encodeHTML(item.modifiedBy) + "/" + this.peoplePage, urlTypes.PAGE_RELATIVE);
-         info += "<a href='" + modifiedUserUrl + "'>" + this.encodeHTML(item.modifiedBy) + "</a> | ";
-         info += this.getRelativeTime(item.modifiedOn) + " | ";
          info += this.formatFileSize(item.size);
-
+         var info2 = "";
+         var modifiedUserUrl = urlUtils.convertUrl("user/" + this.encodeHTML(item.modifiedBy) + "/" + this.peoplePage, urlTypes.PAGE_RELATIVE);
+         info2 += this.getRelativeTime(item.modifiedOn) + " | ";
+         info2 += "<a href='" + modifiedUserUrl + "'>" + this.encodeHTML(item.modifiedBy) + "</a>";
+         
          var desc = item.title;
          if (item.description)
          {
@@ -1090,7 +1239,6 @@ define(["dojo/_base/declare",
          {
             case "wiki":
                link = this.wikiPage + "?title=" + encodeURIComponent(item.name);
-               
                break;
             case "blog":
                link = this.blogPage + "?postId=" + encodeURIComponent(item.name);
@@ -1110,6 +1258,7 @@ define(["dojo/_base/declare",
             icon: AlfConstants.PROXY_URI + "api/node/" + item.nodeRef.replace(":/", "") + "/content/thumbnails/doclib?c=queue&ph=true&lastModified=" + lastModified,
             alt: item.name,
             meta: info,
+            meta2: info2,
             currentItem: lang.clone(item),
             publishTopic: this.publishTopic,
             publishPayload: this.publishPayload,
@@ -1127,9 +1276,14 @@ define(["dojo/_base/declare",
        * @param {number} startIndex
        */
       liveSearchDocuments: function alfresco_header_SearchBox__liveSearchDocuments(terms, startIndex) {
+         var url = AlfConstants.PROXY_URI + this.liveSearchDocumentsUri + "?t=" + this.generateSearchTerm(terms) +
+                   "&maxResults=" + this._resultPageSize + "&startIndex=" + startIndex;
+         if (this.siteContext === true && this.site) {
+            url += "&s=" + encodeURIComponent(this.site);
+         }
          this._requests.push(
             this.serviceXhr({
-               url: AlfConstants.PROXY_URI + this.liveSearchDocumentsUri + "?t=" + this.generateSearchTerm(terms) + "&maxResults=" + this._resultPageSize + "&startIndex=" + startIndex,
+               url: url,
                method: "GET",
                successCallback: function(response) {
                   
@@ -1191,15 +1345,21 @@ define(["dojo/_base/declare",
        * @overridable
        */
       processLiveSearchSite: function alfresco_header_SearchBox__processLiveSearchSite(item) {
+         var visibility = item.visibility;
+         if (visibility)
+         {
+            visibility = this.message("site.visibility.label." + visibility);
+         }
          return this.createLiveSearchSite({
             searchBox: this,
             cssClass: "alf-livesearch-icon",
             title: item.description,
             label: item.title,
             link: urlUtils.convertUrl("site/" + item.shortName + "/" + this.sitePage, urlTypes.PAGE_RELATIVE),
-            icon: AlfConstants.URL_RESCONTEXT + "components/images/filetypes/generic-site-32.png",
+            icon: AlfConstants.URL_RESCONTEXT + "components/images/filetypes/generic-site-48.png",
             alt: item.title,
             meta: item.description ? this.encodeHTML(item.description) : "&nbsp;",
+            meta2: visibility ? visibility : "&nbsp;",
             currentItem: lang.clone(item),
             publishTopic: this.publishTopic,
             publishPayload: this.publishPayload,
@@ -1265,16 +1425,18 @@ define(["dojo/_base/declare",
        */
       processLiveSearchPerson: function alfresco_header_SearchBox__processLiveSearchPerson(item) {
          var fullName = item.firstName + " " + item.lastName;
-         var meta = this.encodeHTML(item.jobtitle || "") + (item.location ? (", "+this.encodeHTML(item.location)) : "");
+         var meta = (item.jobtitle || "") + (item.organization ? ((item.jobtitle ? ", " : "") + item.organization) : "");
+         var meta2 = (item.email || "") + (item.location ? ((item.email ? ", " : "") + item.location) : "");
          return this.createLiveSearchPerson({
             searchBox: this,
             cssClass: "alf-livesearch-icon",
             title: item.jobtitle || "",
             label: fullName + " (" + item.userName + ")",
             link: urlUtils.convertUrl("user/" + encodeURIComponent(item.userName) + "/" + this.peoplePage, urlTypes.PAGE_RELATIVE),
-            icon: AlfConstants.PROXY_URI + "slingshot/profile/avatar/" + encodeURIComponent(item.userName) + "/thumbnail/avatar32",
+            icon: AlfConstants.PROXY_URI + "slingshot/profile/avatar/" + encodeURIComponent(item.userName) + "/thumbnail/avatar",
             alt: fullName,
-            meta: meta ? meta : "&nbsp;",
+            meta: meta ? this.encodeHTML(meta) : "&nbsp;",
+            meta2: meta2 ? this.encodeHTML(meta2) : "&nbsp;",
             currentItem: lang.clone(item),
             publishTopic: this.publishTopic,
             publishPayload: this.publishPayload,
@@ -1359,6 +1521,14 @@ define(["dojo/_base/declare",
          {
             domStyle.set(this._LiveSearch.titleNodePeople, "display", "none");
             domStyle.set(this._LiveSearch.containerNodePeople, "display", "none");
+         }
+
+         // Site Search options are displyed if a site local context search was last performed - this is to ensure
+         // the user can select the 'Repository' option even if no results are present from the local site search
+         var terms = lang.trim(this._searchTextNode.value);
+         if (this.enableContextLiveSearch === true && this.siteContext === true && terms.length >= this._minimumSearchLength)
+         {
+            anyResults = true;
          }
 
          // Results pane

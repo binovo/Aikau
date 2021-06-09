@@ -23,6 +23,35 @@
  * retrieved and filtered by a dedicated [ServiceStore]{@link module:alfresco/forms/controls/utilities/ServiceStore}
  * instance.
  *
+ * <p><strong>PLEASE NOTE: </strong>Because this form control uses the a
+ * [ServiceStore]{@link module:alfresco/forms/controls/utilities/ServiceStore} please take care to configure the
+ * "queryAttribute", "labelAttribute", "valueAttribute" and "resultsProperty" attributes.</p>
+ *
+ * @example <caption>Example configuration</caption>
+ * {
+ *    id: "COMBO_BOX",
+ *    name: "alfresco/forms/controls/FilteringSelect",
+ *    config: {
+ *       fieldId: "COMBO_BOX_1",
+ *       name: "person",
+ *       label: "Select or name a person",
+ *       description: "The people options are provided by the OptionsService, but can be filtered via the ServiceStore",
+ *       optionsConfig: {
+ *          queryAttribute: "label",
+ *          labelAttribute: "label",
+ *          valueAttribute: "value",
+ *          publishTopic: "ALF_GET_FORM_CONTROL_OPTIONS",
+ *          publishPayload: {
+ *             resultsProperty: "options",
+ *             url: url.context + "/proxy/alfresco/api/people",
+ *             itemsAttribute: "people",
+ *             labelAttribute: "userName",
+ *             valueAttribute: "userName"
+ *          }
+ *       }
+ *    }
+ * }
+ *
  * @module alfresco/forms/controls/ComboBox
  * @extends module:alfresco/forms/controls/BaseFormControl
  * @mixes module:alfresco/forms/controls/utilities/UseServiceStoreMixin
@@ -73,6 +102,18 @@ define(["dojo/_base/declare",
       placeHolder: null,
 
       /**
+       * Indicates whether opening the drop-down menu should show all available options
+       * or just those that match the current value of the control. Defaults to true
+       * (meaning that only filtered results are displayed).
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.96
+       */
+      showAllOptionsOnOpen: false,
+
+      /**
        * @instance
        */
       getWidgetConfig: function alfresco_forms_controls_ComboBox__getWidgetConfig() {
@@ -96,7 +137,6 @@ define(["dojo/_base/declare",
          var comboBox = new ComboBox({
             id: this.id + "_CONTROL",
             name: this.name,
-            value: this.value,
             placeHolder: placeHolder,
             store: serviceStore,
             searchAttr: serviceStore.queryAttribute,
@@ -105,7 +145,7 @@ define(["dojo/_base/declare",
             autoComplete: this.autoComplete
          });
          this.addIcon(comboBox);
-         this.showOptionsBasedOnValue(comboBox);
+         !this.showAllOptionsOnOpen && this.showOptionsBasedOnValue(comboBox);
          return comboBox;
       },
 

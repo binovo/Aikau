@@ -50,26 +50,22 @@
  * }
  *
  * @module alfresco/renderers/Indicators
- * @extends external:dijit/_WidgetBase
- * @mixes external:dojo/_TemplatedMixin
- * @mixes module:alfresco/core/Core
+ * @extends module:aikau/core/BaseWidget
+ * @mixes module:alfresco/renderers/_PublishPayloadMixin
  * @author Dave Draper
  * @author Martin Doyle
  */
 define(["dojo/_base/declare", 
-        "dijit/_WidgetBase", 
-        "dijit/_TemplatedMixin", 
+        "aikau/core/BaseWidget",
         "alfresco/renderers/_PublishPayloadMixin", 
-        "dojo/text!./templates/Indicators.html", 
-        "alfresco/core/Core", 
         "service/constants/Default",
         "dojo/_base/array", 
         "dojo/_base/lang", 
         "dojo/dom-construct", 
         "dojo/on"], 
-        function(declare, _WidgetBase, _TemplatedMixin, _PublishPayloadMixin, template, AlfCore, AlfConstants, array, lang, domConstruct, on) {
+        function(declare, BaseWidget, _PublishPayloadMixin, AlfConstants, array, lang, domConstruct, on) {
 
-   return declare([_WidgetBase, _TemplatedMixin, _PublishPayloadMixin, AlfCore], {
+   return declare([BaseWidget, _PublishPayloadMixin], {
 
       /**
        * An array of the i18n files to use with this widget.
@@ -94,13 +90,6 @@ define(["dojo/_base/declare",
       }],
 
       /**
-       * The HTML template to use for the widget.
-       * @instance
-       * @type {string}
-       */
-      templateString: template,
-
-      /**
        * An object that can map each icon attribute to a custom source file for the indicator image. All mappings
        * will be appended to the "resource URL" (e.g. in Alfresc Share this prefix would be "share/res/") which give
        * maximum opportunity for finding images anywhere within the application.
@@ -111,6 +100,34 @@ define(["dojo/_base/declare",
        * @since 1.0.55
        */
       iconMapping: null,
+
+      /**
+       * This is a white list of the icons available in Aikau. If any indicator is configured without
+       * [iconMapping]{@link module:alfresco/renderers/Indicators#iconMapping} and is rendering a
+       * [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#currentItem} that does not map
+       * one of these values then [legacyMode]{@link module:alfresco/renderers/Indicators#legacyMode}
+       * will automatically be enabled.
+       * 
+       * @instance
+       * @type {string[]}
+       * @since 1.0.71
+       * @default
+       */
+      iconWhiteList: [
+         "active-workflows-16.png",
+         "cloud-indirect-sync-16.png",
+         "cloud-indirect-sync-failed-16.png",
+         "cloud-synced-16.png",
+         "cloud-sync-failed-16.png",
+         "editing-16.png",
+         "exif-16.png",
+         "geographic-16.png",
+         "locked-16.png",
+         "lock-owner-16.png",
+         "rules-16.png",
+         "simple-workflow-16.png",
+         "transferred-node-16.png"
+      ],
 
       /**
        * This indicates whether or not to use the root path of "/res/components/documentlibrary/indicators/" for icon
@@ -135,6 +152,18 @@ define(["dojo/_base/declare",
       propertyToRender: null,
 
       /**
+       * Indicates whether or not the configured actions for the indicators supported. So if this is configured
+       * to be false then no indicator will be clickable regardless of whether or not an action has been
+       * provided for it.
+       *
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.72
+       */
+      supportActions: true,
+
+      /**
        * This is an auto-populated instance property that holds a cleaned-up array of indicators for the current item.
        *
        * @instance
@@ -142,6 +171,18 @@ define(["dojo/_base/declare",
        * @type {object[]}
        */
       _currentIndicators: null,
+
+      /**
+       * Overrides [the inherited function]{@link module:aikau/core/BaseWidget#createWidgetDom}
+       * to construct the DOM for the widget using native browser capabilities.
+       *
+       * @instance
+       * @since 1.0.101
+       */
+      createWidgetDom: function alfresco_renderers_Indicators__createWidgetDom() {
+         this.containerNode = this.domNode = document.createElement("div");
+         this.domNode.classList.add("alfresco-renderers-Indicators");
+      },
 
       /**
        * Set up the attributes to be used when rendering the template.
@@ -257,7 +298,7 @@ define(["dojo/_base/declare",
          }
          var label = this.message(indicator.label, messageArgs),
             classes = ["indicator"];
-         if (indicator.action) {
+         if (this.supportActions && indicator.action) {
             classes.push("has-action");
          }
 
@@ -272,7 +313,7 @@ define(["dojo/_base/declare",
          {
             // If mapping is unsuccessful then use either the legcacy path or the "pure" Aikau path to set the 
             // icon image source...
-            if (this.legacyMode)
+            if (this.legacyMode || !this.iconInWhiteList(indicator.icon))
             {
                src = AlfConstants.URL_RESCONTEXT + "components/documentlibrary/indicators/" + indicator.icon;
             }
@@ -288,9 +329,24 @@ define(["dojo/_base/declare",
             "alt": indicator.id,
             "class": classes.join(" ")
          }, this.containerNode);
-         if (indicator.action) {
+         if (this.supportActions && indicator.action) {
             on(img, "click", lang.hitch(this, this.onActionClick, indicator));
          }
+      },
+
+      /**
+       * Checks the [whitelist]{@link module:alfresco/renderers/Indicators#iconWhiteList}
+       * for the presence of the supplied icon.
+       * 
+       * @instance
+       * @param  {string} icon The icon to check the whitelist for
+       * @return {boolean} True if the icon is found and false otherwise
+       * @since 1.0.71
+       */
+      iconInWhiteList: function alfresco_renderers_Indicators__iconInWhiteList(icon) {
+         return array.some(this.iconWhiteList, function(currIcon) {
+            return currIcon === icon;
+         });
       },
 
       /**

@@ -37,7 +37,9 @@ model.jsonModel = {
                                     id: "BASIC",
                                     name: "alfresco/renderers/Property",
                                     config: {
-                                       propertyToRender: "name"
+                                       propertyToRender: "name",
+                                       renderedValueClass: "one two",
+                                       title: "Seen on hover"
                                     }
                                  },
                                  {
@@ -125,6 +127,45 @@ model.jsonModel = {
                                     config: {
                                        maxWidth: "300px",
                                        propertyToRender: "name"
+                                    }
+                                 }
+                              ]
+                           }
+                        }
+                     ]
+                  }
+               }
+            ]
+            
+         }
+      },
+      {
+         id: "LIST3",
+         name: "alfresco/lists/views/AlfListView",
+         config: {
+            currentData: {
+               items: [
+                  {
+                     name: "Lorem ipsum highlight dolor sit amet, consectetur adipiscing highlight elit. Maecenas tempor, est eu suscipit congue, risus ipsum vehicula eros, non consectetur highlight orci enim vitae velit. Suspendisse highlight nec quam convallis, malesuada tellus mollis, laoreet dui. Pellentesque malesuada quam et urna pharetra, in varius ex elementum. Maecenas vitae vehicula velit, et pellentesque lorem. Aenean egestas massa sed dictum mollis. Mauris blandit pharetra consequat. Proin ut volutpat est, quis convallis leo. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae;",
+                     toHighlight: "highlight"
+                  }
+               ]
+            },
+            widgets:[
+               {
+                  name: "alfresco/lists/views/layouts/Row",
+                  config: {
+                     widgets: [
+                        {
+                           name: "alfresco/lists/views/layouts/Cell",
+                           config: {
+                              widgets: [
+                                 {
+                                    id: "HIGHLIGHT",
+                                    name: "alfresco/renderers/Property",
+                                    config: {
+                                       propertyToRender: "name",
+                                       highlightProperty: "toHighlight"
                                     }
                                  }
                               ]

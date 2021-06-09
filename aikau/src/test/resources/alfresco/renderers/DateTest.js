@@ -80,6 +80,30 @@ define(["module",
             .then(function(visibleText) {
                assert.equal(visibleText, "Not available");
             });
+      },
+
+      "Label rendered correctly with standard properties": function() {
+         return this.remote.findByCssSelector("#STANDARD_PROPS .label")
+            .getVisibleText()
+            .then(function(visibleText) {
+               assert.equal(visibleText, "No Description:");
+            });
+      },
+
+      "Label rendered correctly in simple mode": function() {
+         return this.remote.findByCssSelector("#SIMPLE_MODE .label")
+            .getVisibleText()
+            .then(function(visibleText) {
+               assert.equal(visibleText, "No Description:");
+            });
+      },
+
+      "Date rendered in custom format": function() {
+         return this.remote.findByCssSelector("#FORMATTED .value")
+            .getVisibleText()
+            .then(function(visibleText) {
+               assert.equal(visibleText, "11/4/00");
+            });
       }
    });
 });

@@ -86,13 +86,21 @@ define(["dojo/_base/declare",
 
          // Load the user preferences...
          this._preferencesLoaded = new Deferred();
-         var url = AlfConstants.PROXY_URI + "api/people/" + encodeURIComponent(AlfConstants.USERNAME) + "/preferences";
-         this.serviceXhr({url : url,
+         // early-resolve when localPreferences have been provided via config
+         if (this.localPreferences !== undefined && this.localPreferences !== null)
+         {
+             this._preferencesLoaded.resolve(this.localPreferences);
+         }
+         else
+         {
+             var url = AlfConstants.PROXY_URI + "api/people/" + encodeURIComponent(AlfConstants.USERNAME) + "/preferences";
+             this.serviceXhr({url : url,
                           successCallback: function(response) {
                               this._preferencesLoaded.resolve(response);
                           },
                           callbackScope: this,
                           method: "GET"});
+         }
       },
       
       /**
@@ -260,7 +268,7 @@ define(["dojo/_base/declare",
       update: function alfresco_services_PreferenceService__update(payload, add) {
          if (payload.name && payload.value)
          {
-            var url = AlfConstants.PROXY_URI + "api/people/" + encodeURIComponent(AlfConstants.USERNAME) + "/preferences" + (name ? "?pf=" + name : "");
+            var url = AlfConstants.PROXY_URI + "api/people/" + encodeURIComponent(AlfConstants.USERNAME) + "/preferences" + (payload.name ? "?pf=" + payload.name : "");
             this.serviceXhr({
                url: url,
                method: "GET",

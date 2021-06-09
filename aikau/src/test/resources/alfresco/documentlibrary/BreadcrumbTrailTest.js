@@ -57,6 +57,17 @@ define(["module",
             });
       },
 
+      "Click publication configured breadcrumb": function() {
+         return this.remote.findByCssSelector("#LINKING_PATH_BREADCRUMBS .alfresco-documentlibrary-AlfBreadcrumb:nth-child(3) .breadcrumb")
+            .click()
+         .end()
+
+         .getLastPublish("ALF_NAVIGATE_TO_PAGE")
+            .then(function(payload) {
+               assert.propertyVal(payload, "url", "documentlibrary#filter=path|/ambition/is/the");
+            });
+      },
+
       "Counting hash breadcrumbs...": function() {
          // Test 1...
          // Check the path is initially displayed...
@@ -120,6 +131,28 @@ define(["module",
             });
       },
 
+      "Check breadcrumb labels are encoded to avoid xss attacks": function() {
+         return this.remote.findByCssSelector("#ESCAPED_BREADCRUMBS ul li:first-of-type a")
+            .getVisibleText()
+            .then(function(text) {
+               assert(text === "These breadcrumbs contain XSS attacks", "XSS crumbs first item is wrong: " + text);
+            })
+            .end()
+
+            .findByCssSelector("#ESCAPED_BREADCRUMBS ul li:nth-of-type(2) a")
+            .getVisibleText()
+            .then(function(text) {
+               assert(text === "<script>alert('XSS');</script>", "XSS crumbs 2nd item is wrong: " + text);
+            })
+            .end()
+
+            .findByCssSelector("#ESCAPED_BREADCRUMBS ul li:last-of-type a")
+            .getVisibleText()
+            .then(function(text) {
+               assert(text === "<div style='width: expression(alert('XSS'));'>", "XSS crumbs last item is wrong: " + text);
+            });
+      },
+
       "Check that filter mode is displayed": function() {
          return this.remote.findByCssSelector("#FILTER_SELECTION_label")
             .click()
@@ -171,7 +204,7 @@ define(["module",
 
          .getLastPublish("ALF_NAVIGATE_TO_PAGE", "Navigation publication not found")
             .then(function(payload) {
-               assert.propertyVal(payload, "url", "path=/different", "Navigation payload URL incorrect");
+               assert.propertyVal(payload, "url", "path=/different&currentPage=1", "Navigation payload URL incorrect");
                assert.propertyVal(payload, "modifyCurrent", true, "Did not request to modify current hash");
             });
       },

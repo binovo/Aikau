@@ -164,7 +164,7 @@ define(["dojo/_base/declare",
          }
          if (!this.iconAltText && this.title)
          {
-            this.iconAltText = originalLabel;
+            this.iconAltText = this.message(originalLabel);
          }
          else if (this.iconAltText)
          {
@@ -230,7 +230,7 @@ define(["dojo/_base/declare",
             var iconNodeParent = this.iconNode.parentNode;
             domConstruct.destroy(this.iconNode);
             this.iconNode = domConstruct.create("img", {
-               role:"presentation",
+               role:"button",
                className: "dijitInline dijitIcon dijitMenuItemIcon alfresco-menus-_AlfMenuItemMixin__icon alfresco-menus-AlfMenuItemIconMixin " + this.iconClass,
                src: require.toUrl("alfresco/menus/css/images/transparent-20.png"),
                title: this.iconAltText,
@@ -280,10 +280,18 @@ define(["dojo/_base/declare",
        * @param {object} evt The click event
        */
       onClick: function alfresco_menus__AlfMenuItemMixin__onClick(evt) {
+         // jshint maxcomplexity:false
          var targetUrlLocation = this.targetUrlLocation;
-         if (has("mac") && evt.metaKey)
+         var middleButton = evt.button === 1;
+         var leftButton = evt.button === 0;
+         var ctrlKey = has("mac") ? evt.metaKey : evt.ctrlKey;
+         if (middleButton || (leftButton && ctrlKey))
          {
             targetUrlLocation = "NEW";
+         }
+         else if (this.publishPayload && leftButton && this.publishPayload.target !== this.currentTarget)
+         {
+            this.publishPayload.target = this.defaultNavigationTarget || this.currentTarget;
          }
 
          // Emit the event to close popups in the stack...

@@ -133,6 +133,56 @@ define(["dojo/_base/declare",
       enableContextMenu: false,
 
       /**
+       * The prefix string that indicates the start of text to highlight.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.92
+       */
+      highlightPrefix: "\u0000",
+
+      /**
+       * This is the property within the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#highlightProperty}
+       * that should be used to identify the content with in the 
+       * [renderedValue]{@link module:alfresco/renderers/Property#renderedValue} to highlight.
+       * 
+       * @instance
+       * @type {string}
+       * @default 
+       * @since 1.0.92
+       */
+      highlightPostfix: "\u0003",
+
+      /**
+       * This is the property within the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#highlightProperty}
+       * that should be used to identify the content with.
+       * 
+       * @instance
+       * @type {string}
+       * @default 
+       * @since 1.0.87
+       * @deprecated Since 1.0.92 - use [highlightPrefix]{@link module:alfresco/search/AlfSearchResult#highlightPrefix}
+       * and [highlightPostfix]{@link module:alfresco/search/AlfSearchResult#highlightPostfix}
+       */
+      highlightProperty: null,
+
+      /**
+       * This is initialised to the [highlightProperty]{@link module:alfresco/search/AlfSearchResult#highlightProperty}
+       * property within the [currentItem]{@link module:alfresco/core/CoreWidgetProcessing#highlightProperty} when the
+       * [showSearchTermHighlights]{@link module:alfresco/search/AlfSearchResult#showSearchTermHighlights} is 
+       * configured to be true.
+       * 
+       * @instance
+       * @type {string}
+       * @default 
+       * @since 1.0.87
+       * @deprecated Since 1.0.92 - use [highlightPrefix]{@link module:alfresco/search/AlfSearchResult#highlightPrefix}
+       * and [highlightPostfix]{@link module:alfresco/search/AlfSearchResult#highlightPostfix}
+       */
+      highlightValue: null,
+
+      /**
        * Indicates whether or not the standard actions (e.g. those derived from Document Library XML configuration)
        * should be merged with any [customActions]{@link module:alfresco/renderers/_ActionsMixin#customActions} and
        * [widgetsForActions]{@link module:alfresco/renderers/_ActionsMixin#widgetsForActions}. This is applied to 
@@ -202,6 +252,15 @@ define(["dojo/_base/declare",
       showMoreInfo: true,
 
       /**
+       * 
+       * @instance
+       * @type {boolean}
+       * @default
+       * @since 1.0.87
+       */
+      showSearchTermHighlights: false,
+
+      /**
        * Indicates whether or not a [Selector]{@link module:alfresco/renderers/Selector} widget should
        * be rendered with the search result.
        * @instance
@@ -250,6 +309,11 @@ define(["dojo/_base/declare",
        * @instance postCreate
        */
       postCreate: function alfresco_search_AlfSearchResult__postCreate() {
+         if (this.showSearchTermHighlights && this.highlightProperty)
+         {
+            this.highlightValue = lang.getObject(this.highlightProperty, false, this.currentItem);
+         }
+
          this.generateActionFilters();
          this.createSelectorRenderer();
          this.createThumbnailRenderer();
@@ -262,6 +326,7 @@ define(["dojo/_base/declare",
          this.createSiteRenderer();
          this.createPathRenderer();
          this.createSizeRenderer();
+         this.createContentSnippet();
          this.createWidgetsBelow();
          this.createActionsRenderer();
          this.createContextActionsWidget();
@@ -286,6 +351,35 @@ define(["dojo/_base/declare",
             allowedActions: (this.currentItem.type === "document" || this.currentItem.type === "folder") ? this.documentAndFolderActions : this.otherNodeActions,
             widgetsForActions: this.widgetsForActions
          }, this.actionsNode);
+      },
+
+      /**
+       * 
+       * @instance
+       * @since 1.0.92
+       */
+      createContentSnippet: function alfresco_search_AlfSearchResult__createContentSnippet() {
+         if (this.showSearchTermHighlights)
+         {
+            var content = lang.getObject("highlighting.content", false, this.currentItem);
+            if (content)
+            {
+               // jshint nonew:false
+               new Property({
+                  id: this.id + "_CONTENT_SNIPPET",
+                  currentItem: this.currentItem,
+                  pubSubScope: this.pubSubScope,
+                  propertyToRender: "highlighting.content",
+                  renderedValuePrefix: "\"",
+                  renderedValueSuffix: "...\"",
+                  highlightValue: this.highlightValue,
+                  highlightPrefix: this.showSearchTermHighlights ? this.highlightPrefix : null,
+                  highlightPostfix: this.showSearchTermHighlights ? this.highlightPostfix : null,
+                  trimValue: true
+               }, this.contentNode);
+            }
+         }
+
       },
 
       /**
@@ -337,7 +431,10 @@ define(["dojo/_base/declare",
                currentItem: this.currentItem,
                pubSubScope: this.pubSubScope,
                propertyToRender: "description",
-               renderSize: "small"
+               renderSize: "small",
+               highlightValue: this.highlightValue,
+               highlightPrefix: this.showSearchTermHighlights ? this.highlightPrefix : null,
+               highlightPostfix: this.showSearchTermHighlights ? this.highlightPostfix : null
             }, this.descriptionNode);
          }
       },
@@ -391,7 +488,10 @@ define(["dojo/_base/declare",
             propertyToRender: "displayName",
             renderSize: "large",
             newTabOnMiddleOrCtrlClick: this.newTabOnMiddleOrCtrlClick,
-            defaultNavigationTarget: this.navigationTarget
+            defaultNavigationTarget: this.navigationTarget,
+            highlightValue: this.highlightValue,
+            highlightPrefix: this.showSearchTermHighlights ? this.highlightPrefix : null,
+            highlightPostfix: this.showSearchTermHighlights ? this.highlightPostfix : null
          };
          if (this.navigationTarget)
          {
@@ -418,7 +518,9 @@ define(["dojo/_base/declare",
                pubSubScope: this.pubSubScope,
                xhrRequired: true,
                filterActions: true,
-               darkIcon: true
+               darkIcon: true,
+               highlightPrefix: this.showSearchTermHighlights ? this.highlightPrefix : null,
+               highlightPostfix: this.showSearchTermHighlights ? this.highlightPostfix : null
             };
             if (this.currentItem.type === "document" || this.currentItem.type === "folder")
             {
@@ -448,11 +550,16 @@ define(["dojo/_base/declare",
          }
          else
          {
+            if (this.currentItem.path[0] !== "/")
+            {
+               this.currentItem.path = "/" + this.currentItem.path;
+            }
+
             // Create processed path as pathLink on this.currentItem
             var isRepo = !lang.exists("site.title", this.currentItem);
             this.currentItem.pathLink = isRepo ?
                encodeURIComponent("/" + this.currentItem.path.split("/").slice(2).join("/")) :
-               encodeURIComponent("/" + this.currentItem.path);
+               encodeURIComponent(this.currentItem.path);
 
             // jshint nonew:false
             new PropertyLink({
@@ -473,7 +580,10 @@ define(["dojo/_base/declare",
                   target: this.navigationTarget
                },
                newTabOnMiddleOrCtrlClick: this.newTabOnMiddleOrCtrlClick,
-               defaultNavigationTarget: this.navigationTarget
+               defaultNavigationTarget: this.navigationTarget,
+               highlightValue: this.highlightValue,
+               highlightPrefix: this.showSearchTermHighlights ? this.highlightPrefix : null,
+               highlightPostfix: this.showSearchTermHighlights ? this.highlightPostfix : null
             }, this.pathNode);
          }
       },
@@ -516,14 +626,16 @@ define(["dojo/_base/declare",
          var site = lang.getObject("site.title", false, this.currentItem);
          if (!site)
          {
-            domClass.add(this.siteRow, "hidden");
+            domClass.add(this.siteNode, "hidden");
+            domClass.add(this.siteSeparatorNode, "hidden");
          }
          else
          {
             // jshint nonew:false
             new PropertyLink({
                id: this.id + "_SITE",
-               renderedValueClass: "alfresco-renderers-Property pointer",
+               renderedValueClass: "alfresco-renderers-Property pointer alfresco-search-AlfSearchResult__site",
+               deemphasized: true,
                renderSize: "small",
                pubSubScope: this.pubSubScope,
                currentItem: this.currentItem,
@@ -540,7 +652,10 @@ define(["dojo/_base/declare",
                   target: this.navigationTarget
                },
                newTabOnMiddleOrCtrlClick: this.newTabOnMiddleOrCtrlClick,
-               defaultNavigationTarget: this.navigationTarget
+               defaultNavigationTarget: this.navigationTarget,
+               highlightValue: this.highlightValue,
+               highlightPrefix: this.showSearchTermHighlights ? this.highlightPrefix : null,
+               highlightPostfix: this.showSearchTermHighlights ? this.highlightPostfix : null
             }, this.siteNode);
          }
       },
@@ -555,7 +670,8 @@ define(["dojo/_base/declare",
          // We only show the size if it's not empty and at least one byte
          if (!this.currentItem.size || this.currentItem.size < 0)
          {
-            domClass.add(this.sizeRow, "hidden");
+            domClass.add(this.sizeNode, "hidden");
+            domClass.add(this.sizeSeparatorNode, "hidden");
          }
          else
          {
@@ -565,6 +681,7 @@ define(["dojo/_base/declare",
                currentItem : this.currentItem,
                pubSubScope : this.pubSubScope,
                label : this.message("faceted-search.doc-lib.value-prefix.size"),
+               deemphasized: true,
                renderSize: "small",
                sizeProperty : "size"
             }, this.sizeNode);
@@ -585,7 +702,9 @@ define(["dojo/_base/declare",
             pubSubScope: this.pubSubScope,
             showDocumentPreview: true,
             newTabOnMiddleOrCtrlClick: this.newTabOnMiddleOrCtrlClick,
-            defaultNavigationTarget: this.navigationTarget
+            defaultNavigationTarget: this.navigationTarget,
+            highlightPrefix: this.showSearchTermHighlights ? this.highlightPrefix : null,
+            highlightPostfix: this.showSearchTermHighlights ? this.highlightPostfix : null
          };
          if (this.navigationTarget)
          {
@@ -650,7 +769,10 @@ define(["dojo/_base/declare",
                propertyToRender: "title",
                renderSize: "small",
                renderedValuePrefix: "(",
-               renderedValueSuffix: ")"
+               renderedValueSuffix: ")",
+               highlightValue: this.highlightValue,
+               highlightPrefix: this.showSearchTermHighlights ? this.highlightPrefix : null,
+               highlightPostfix: this.showSearchTermHighlights ? this.highlightPostfix : null
             }, this.titleNode);
          }
       },

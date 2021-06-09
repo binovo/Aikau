@@ -201,6 +201,27 @@ define(["dojo/_base/declare",
       lastBreadcrumbPublishPayloadModifiers: null,
 
       /**
+       * A topic to subscribe to for path change events.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.17
+       */
+      pathChangeTopic: null,
+
+      /**
+       * The property to use when retrieving path data from payloads published on the 
+       * [pathChangeTopic]{@link module:alfresco/documentlibrary/AlfBreadCrumbTrail#pathChangeTopic}.
+       * 
+       * @instance
+       * @type {string}
+       * @default
+       * @since 1.0.96
+       */
+      pathChangeTopicPathProperty: "path",
+
+      /**
        * The label for the root of the breadcrumb trail.
        * 
        * @instance
@@ -332,9 +353,12 @@ define(["dojo/_base/declare",
        * @since 1.0.60
        */
       onHashChanged: function alfresco_documentlibrary_AlfBreadcrumbTrail__onHashChanged(newHash) {
-         if (newHash.path) {
+         if (newHash.path) 
+         {
             this.onPathChanged(newHash);
-         } else if (newHash.filter && newHash.description) {
+         } 
+         else if (newHash.filter && newHash.description) 
+         {
             this.onFilterSelection(newHash);
          }
       },
@@ -350,10 +374,11 @@ define(["dojo/_base/declare",
        */
       onPathChanged: function alfresco_documentlibrary_AlfBreadcrumbTrail__onPathChanged(payload) {
          this.alfLog("log", "Detected path change", payload);
-         if (payload && payload.path)
+         var path = payload && lang.getObject(this.pathChangeTopicPathProperty, false, payload);
+         if (path)
          {
             this._filterDisplayed = false;
-            this.currentPath = payload.path;
+            this.currentPath = path;
             this.renderPathBreadcrumbTrail();
             if(this.useHash === true) {
                hashUtils.updateHash({
@@ -382,6 +407,25 @@ define(["dojo/_base/declare",
       },
 
       /**
+       * This function can be used to copy the publication configuration from the breadcrumb trail
+       * to an individual [AlfBreadcrumb]{@link module:alfresco/documentlibrary/AlfBreadcrumb}.
+       * 
+       * @instance
+       * @param {object} config The configuration object to copy the publication configuration to
+       * @since 1.0.71
+       */
+      copyPublicationConfig: function alfresco_documentlibrary_AlfBreadcrumbTrail__copyPublicationConfig(config) {
+         config.publishTopic = this.publishTopic;
+         config.publishPayload = this.publishPayload;
+         config.publishPayloadItemMixin = this.publishPayloadItemMixin;
+         config.publishPayloadModifiers = this.publishPayloadModifiers;
+         config.publishPayloadType = this.publishPayloadType;
+         config.publishGlobal = this.publishGlobal;
+         config.publishToParent = this.publishToParent;
+      },
+
+
+      /**
        * Renders an individual [AlfBreadcrumb]{@link module:alfresco/documentlibrary/AlfBreadcrumb} in the breadcrumb trail.
        * 
        * @instance
@@ -400,12 +444,19 @@ define(["dojo/_base/declare",
             {
                config.publishTopic = "ALF_NAVIGATE_TO_PAGE";
                config.publishPayload = {
-                  url: "path=" + (path || "/"),
+                  url: "path=" + (path || "/") + "&currentPage=1",
                   type: "HASH",
                   target: "CURRENT",
                   modifyCurrent: true
                };
                config.publishGlobal = true;
+            }
+            else if (this.publishTopic)
+            {
+               // If a specific publishTopic has been provided then use this for all the breadcrumbs 
+               // (with the exception of the last breadcrumb as this can be individually
+               // configured)...
+               this.copyPublicationConfig(config);
             }
             else
             {
@@ -421,6 +472,11 @@ define(["dojo/_base/declare",
             config.publishPayload = this.generatePayload(this.lastBreadcrumbPublishPayload, this.currentItem, null, this.lastBreadcrumbPublishPayloadType, this.lastBreadcrumbPublishPayloadItemMixin, this.lastBreadcrumbPublishPayloadModifiers);
             config.publishGlobal = this.lastBreadcrumbPublishGlobal;
             config.publishToParent = this.lastBreadcrumbPublishToParent;
+         }
+         else if (this.publishTopic)
+         {
+            // Still allows for explicit last breadcrumb configuration to trump global configuration...
+            this.copyPublicationConfig(config);
          }
          this.renderBreadcrumb(config);
       },
@@ -512,8 +568,11 @@ define(["dojo/_base/declare",
             this.renderBreadcrumb({
                label: payload.description
             });
-            if(this.useHash === true) {
-               if(!hashUtils.getHash().description) {
+            
+            if(this.useHash === true) 
+            {
+               if(hashUtils.getHash().description !== payload.description) 
+               {
                   hashUtils.updateHash({
                      description: payload.description
                   }, true);
